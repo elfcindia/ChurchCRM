@@ -1,0 +1,262 @@
+<?php
+
+use ChurchCRM\dto\SystemURLs;
+
+require SystemURLs::getDocumentRoot() . '/Include/Header.php';
+?>
+
+<!-- Breadcrumb Navigation -->
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 bg-light">
+                <li class="breadcrumb-item">
+                    <a href="<?= SystemURLs::getRootPath() ?>/v2/dashboard">
+                        <i class="fa-solid fa-home"></i>
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="<?= SystemURLs::getRootPath() ?>/plugins/management"><?= gettext('Plugins') ?></a>
+                </li>
+                <li class="breadcrumb-item active"><?= gettext('Custom Menu Links') ?></li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h3 class="card-title"><i class="fa-solid fa-plus me-2"></i><?= gettext('Add Link') ?></h3>
+    </div>
+    <div class="card-body">
+        <form id="link-form" novalidate>
+                    <div class="mb-3">
+                        <label for="LINK_NAME"><?= gettext('Link Name') ?></label>
+                        <input type="text" name="LINK_NAME" id="LINK_NAME" class="form-control"
+                               aria-describedby="LINK_NAME_HELP" required minlength="2" maxlength="50"
+                               placeholder="<?= gettext('e.g., Church Website') ?>">
+                        <small id="LINK_NAME_HELP" class="form-text text-muted"><?= gettext('2-50 characters') ?></small>
+                        <div class="invalid-feedback"><?= gettext('Please enter a link name (2-50 characters)') ?></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="LINK_URL"><?= gettext('URL') ?></label>
+                        <input type="url" name="LINK_URL" id="LINK_URL" class="form-control"
+                               aria-describedby="LINK_URL_HELP" required 
+                               placeholder="https://example.com">
+                        <small id="LINK_URL_HELP" class="form-text text-muted"><?= gettext('Must start with http:// or https://') ?></small>
+                        <div class="invalid-feedback"><?= gettext('Please enter a valid URL starting with http:// or https://') ?></div>
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-success" id="add-link">
+                            <i class="fa-solid fa-plus"></i><?= gettext('Add Link') ?>
+                        </button>
+                    </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center">
+        <h3 class="card-title"><i class="fa-solid fa-link me-2"></i><?= gettext('Menu Links') ?></h3>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-0">
+            <i class="fa-solid fa-circle-info"></i>
+            <?= gettext('These links appear in the "Links" menu in the navigation sidebar when this plugin is enabled.') ?>
+        </p>
+    </div>
+    <div class="table-responsive">
+        <table id="links-table" class="table table-vcenter table-hover card-table">
+            <thead>
+                <tr>
+                    <th><?= gettext('Name') ?></th>
+                    <th><?= gettext('URL') ?></th>
+                    <th class="no-export w-1"><?= gettext('Actions') ?></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script nonce="<?= SystemURLs::getCSPNonce() ?>">
+$(document).ready(function() {
+    // Initialize DataTable
+    var emptyMsg = i18next.t("No custom links configured. Add one above!");
+    var dataTableConfig = {
+        ajax: {
+            url: window.CRM.root +"/plugins/custom-links/api/links",
+            dataSrc:"data"
+        },
+        autoWidth: false,
+        columns: [
+            {
+                title: i18next.t('Name'),
+                data: 'Name',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return $('<div>').text(data).html();
+                    }
+                    return data;
+                }
+            },
+            {
+                title: i18next.t('Link'),
+                data: 'Uri',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        var escaped = $('<div>').text(data).html();
+                        return '<a href="' + escaped + '" target="_blank" rel="noopener">' + escaped + ' <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i></a>';
+                    }
+                    return data;
+                }
+            },
+            {
+                title: i18next.t('Actions'),
+                data: 'Id',
+                orderable: false,
+                searchable: false,
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<button class="btn btn-sm btn-danger delete-link" data-id="' + data + '">' +
+                            '<i class="fa-solid fa-trash-can"></i></button>';
+                    }
+                    return data;
+                }
+            }
+        ],
+        order: [[1,"asc"]],
+        language: {
+            emptyTable: emptyMsg
+        }
+    };
+    if (window.CRM && window.CRM.plugin && window.CRM.plugin.dataTable) {
+        $.extend(dataTableConfig, window.CRM.plugin.dataTable);
+    }
+    var table = $("#links-table").DataTable(dataTableConfig);
+
+    // Delete handler using event delegation
+    $('#links-table').on('click', '.delete-link', function() {
+        var id = $(this).data('id');
+        var row = $(this).closest('tr');
+        var name = table.row(row).data().Name;
+        
+        bootbox.confirm({
+            message: i18next.t("Are you sure you want to delete the link") + ': <strong>' + $('<div>').text(name).html() + '</strong>?',
+            buttons: {
+                confirm: { label: i18next.t('Yes'), className: 'btn-danger' },
+                cancel: { label: i18next.t('No'), className: 'btn-secondary' }
+            },
+            callback: function(result) {
+                if (result) {
+                    fetch(window.CRM.root + '/plugins/custom-links/api/links/' + id, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            window.CRM.notify(i18next.t('Link deleted'), { type: 'success' });
+                            table.ajax.reload();
+                        } else {
+                            window.CRM.notify(data.message || i18next.t('Failed to delete link'), { type: 'error' });
+                        }
+                    })
+                    .catch(function() {
+                        window.CRM.notify(i18next.t('Failed to delete link'), { type: 'error' });
+                    });
+                }
+            }
+        });
+    });
+
+    // Form submission
+    $("#link-form").on('submit', function(e) {
+        e.preventDefault();
+        
+        var form = this;
+        var $button = $("#add-link");
+        
+        if ($button.prop('disabled')) return false;
+        
+        // Trim inputs
+        var $nameInput = $("#LINK_NAME");
+        var $urlInput = $("#LINK_URL");
+        $nameInput.val($nameInput.val().trim());
+        $urlInput.val($urlInput.val().trim());
+        
+        var linkName = $nameInput.val();
+        var linkUrl = $urlInput.val();
+        
+        // Validate for HTML tags
+        if (/<[^>]*>/g.test(linkName)) {
+            window.CRM.notify(i18next.t("Link name cannot contain HTML tags"), { type: 'error' });
+            $nameInput.val('');
+            $(form).addClass('was-validated');
+            return false;
+        }
+        
+        if (/<[^>]*>/g.test(linkUrl)) {
+            window.CRM.notify(i18next.t("URL cannot contain HTML tags"), { type: 'error' });
+            $urlInput.val('');
+            $(form).addClass('was-validated');
+            return false;
+        }
+        
+        // HTML5 validation
+        if (!form.checkValidity()) {
+            $(form).addClass('was-validated');
+            return false;
+        }
+        
+        // URL format validation
+        if (!linkUrl.match(/^https?:\/\//i)) {
+            window.CRM.notify(i18next.t("URL must start with http:// or https://"), { type: 'error' });
+            $(form).addClass('was-validated');
+            return false;
+        }
+        
+        // Disable button during submission
+        $button.prop('disabled', true);
+        var originalText = $button.html();
+        $button.html('<i class="fa-solid fa-spinner fa-spin"></i>' + i18next.t('Adding...'));
+        
+        fetch(window.CRM.root + '/plugins/custom-links/api/links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                Name: linkName,
+                Uri: linkUrl,
+                Order: 0
+            })
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.CRM.notify(i18next.t('Link added successfully'), { type: 'success' });
+                form.reset();
+                $(form).removeClass('was-validated');
+                table.ajax.reload();
+            } else {
+                var errorMsg = data.message || i18next.t('Failed to add link');
+                if (data.errors && data.errors.length > 0) {
+                    errorMsg += ': ' + data.errors.join(', ');
+                }
+                window.CRM.notify(errorMsg, { type: 'error' });
+            }
+        })
+        .catch(function() {
+            window.CRM.notify(i18next.t('Failed to add link'), { type: 'error' });
+        })
+        .finally(function() {
+            $button.prop('disabled', false);
+            $button.html(originalText);
+        });
+        
+        return false;
+    });
+});
+</script>
+
+<?php
+require SystemURLs::getDocumentRoot() . '/Include/Footer.php';

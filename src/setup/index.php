@@ -1,0 +1,109 @@
+<?php
+
+use ChurchCRM\Slim\Middleware\VersionMiddleware;
+use ChurchCRM\Slim\Middleware\CorsMiddleware;
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpMethodNotAllowedException;
+use Slim\Exception\HttpNotFoundException;
+use Slim\Factory\AppFactory;
+use Slim\Psr7\Response as SlimResponse;
+
+if (file_exists('../Include/Config.php')) {
+    header('Location: ../');
+    exit;
+}
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Detect base path from server variables - no Config.php dependency
+// For /churchcrm/setup/index.php -> SCRIPT_NAME = /churchcrm/setup/index.php
+// For /setup/index.php -> SCRIPT_NAME = /setup/index.php
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '/setup/index.php';
+$scriptName = str_replace('\\', '/', $scriptName);
+$basePath = dirname($scriptName); // Gets /churchcrm/setup or /setup
+
+// Calculate root path (parent of setup directory)
+// /churchcrm/setup -> /churchcrm
+// /setup -> ''
+$rootPath = dirname($basePath);
+if ($rootPath === '/' || $rootPath === '.') {
+    $rootPath = '';
+}
+
+// Fallback detection when SCRIPT_NAME lacks the installation prefix (common with subdir installs)
+if ($rootPath === '') {
+    $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+    $requestPath = parse_url($requestUri, PHP_URL_PATH) ?? '';
+    if ($requestPath !== '') {
+        $requestPath = rtrim($requestPath, '/');
+        if ($requestPath !== '') {
+            $candidate = preg_replace('#/setup(?:/.*)?$#', '', $requestPath);
+            if ($candidate !== null && $candidate !== $requestPath) {
+                $candidate = rtrim($candidate, '/');
+                if ($candidate !== '') {
+                    $rootPath = $candidate;
+                }
+            }
+        }
+    }
+}
+
+if ($rootPath !== '' && $rootPath[0] !== '/') {
+    $rootPath = '/' . $rootPath;
+}
+
+// Store paths in global for template access (no SystemURLs available)
+$GLOBALS['CHURCHCRM_SETUP_ROOT_PATH'] = $rootPath;
+$GLOBALS['CHURCHCRM_SETUP_DOC_ROOT'] = dirname(__DIR__);
+
+$app = AppFactory::create();
+$app->setBasePath($basePath);
+
+// Simple error handler for setup (no database/logging dependencies)
+// Error middleware must be added AFTER routing (LIFO) so it wraps
+// the routing layer and can catch HttpNotFoundException as a proper 404.
+// Note: Setup runs before Config.php exists, so use lightweight error handler.
+$app->addBodyParsingMiddleware();
+$app->addRoutingMiddleware();
+$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+$errorMiddleware->setDefaultErrorHandler(function (
+    ServerRequestInterface $request,
+    \Throwable $exception,
+    bool $displayErrorDetails,
+    bool $logErrors,
+    bool $logErrorDetails
+) {
+    $response = new SlimResponse();
+    
+    // Determine HTTP status code
+    $statusCode = 500;
+    if ($exception instanceof HttpNotFoundException) {
+        $statusCode = 404;
+    } elseif ($exception instanceof HttpMethodNotAllowedException) {
+        $statusCode = 405;
+    }
+    
+    // Build error response with request details for debugging
+    $errorData = [
+        'error' => $exception->getMessage(),
+        'code' => $exception->getCode(),
+        'request' => [
+            'method' => $request->getMethod(),
+            'path' => $request->getUri()->getPath()
+        ]
+    ];
+    
+    // Never include file/line/trace in setup responses to avoid leaking internals
+    
+    $response->getBody()->write(json_encode($errorData, JSON_PRETTY_PRINT));
+    return $response->withStatus($statusCode)->withHeader('Content-Type', 'application/json');
+});
+
+// CORS and version middleware
+
+$app->add(VersionMiddleware::class);
+$app->add(new CorsMiddleware());
+
+require __DIR__ . '/routes/setup.php';
+
+$app->run();

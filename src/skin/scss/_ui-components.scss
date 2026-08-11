@@ -1,0 +1,91 @@
+/**
+ * UI Components
+ *
+ * Custom styling for ChurchCRM UI components that extend AdminLTE and Bootstrap.
+ * Only includes styles that are not available in the base frameworks.
+ */
+
+// Fix icon-text spacing in buttons sitewide (BS5/Tabler migration).
+// Buttons containing <i class="fa-..."></i>Label rendered with the icon
+// touching the text because no trailing whitespace or gap existed.
+// Using inline-flex + gap ensures consistent spacing between icon and label
+// for ALL button variants (primary, outline, ghost, dropdown toggle, etc.).
+// The margin reset on <i>/<svg> overrides Bootstrap me-*/ms-* utilities
+// (higher specificity .btn > i beats .me-* even with !important) so the
+// gap value is the single source of truth — no double-spacing for buttons
+// that previously relied on me-* utility classes for icon spacing.
+// Icon-only buttons are unaffected: gap only applies between multiple items.
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+
+  > i,
+  > svg {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  // Dropdown caret (::after pseudo-element) becomes a flex item inside the
+  // flex container. Reset Bootstrap's built-in margin-left so that only the
+  // gap value provides the spacing before the caret.
+  &.dropdown-toggle::after {
+    margin-left: 0;
+  }
+}
+
+/* System Notifications (merged from _SystemNotifications.scss) */
+[data-notify="container"] {
+  z-index: 9999 !important;
+}
+
+[data-notify="progressbar"] {
+  margin-bottom: 0;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+}
+
+/* Dashboard Stat Card Icons
+   Small circular icon badges used in dashboard stat cards (family count, people count, etc.).
+   These use a span.rounded-circle with centered FontAwesome icon. */
+.rounded-circle .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+// Global loading overlay shown during early page initialization (locale load, initial scripts).
+// This prevents a “blank / basic loader” feel and provides a consistent modern UX.
+.crm-global-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.crm-global-loading-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(520px, 100%);
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--tblr-bg-surface, #fff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.crm-global-loading-text {
+  min-width: 0;
+}

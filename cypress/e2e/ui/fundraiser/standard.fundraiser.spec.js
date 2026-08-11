@@ -1,0 +1,44 @@
+/// <reference types="cypress" />
+
+describe("Fund Raiser", () => {
+    beforeEach(() => cy.setupStandardSession());
+    
+    it("View All ", () => {
+        cy.visit("FundRaiserEditor.php?FundRaiserID=-1");
+        cy.contains("Create New Fund Raiser");
+    });
+
+    it("View By Filter Date ", () => {
+        cy.visit("FindFundRaiser.php?DateStart=2015-01-01&DateEnd=2017-01-01");
+        cy.contains("Fundraiser Listing");
+        cy.contains("2016 Car Wash");
+    });
+    
+    
+    it("New Fund Raiser with url param -1 ", () => {
+        cy.visit("FundRaiserEditor.php?FundRaiserID=-1");
+        cy.contains("Create New Fund Raiser");
+    });
+
+    it("Create new FundRaiser  ", () => {
+        cy.visit("FundRaiserEditor.php");
+        cy.contains("Create New Fund Raiser");
+
+        cy.get('#Title').type('Summer Car Wash');
+        cy.get('#Description').type('This is the youth carwash ');
+        // Click the form submit input (Save)
+        cy.get('input[name="FundRaiserSubmit"]').click();
+
+        cy.url().should('include', 'FundRaiserEditor.php');
+        // Click the Add Donated Item link (avoid relying on an id)
+        cy.contains('a', 'Add Donated Item').click();
+
+        cy.url().should('contains', 'DonatedItemEditor.php');
+        cy.get('#Item').type('Soap for the Car wash');
+        cy.get('#Title').type('Soap');
+        cy.get('#EstPrice').type('20');
+        cy.get('input[name="DonatedItemSubmit"]').click();
+        cy.url().should('contains', 'FundRaiserEditor.php');
+        cy.contains("Soap for the Car wash");
+    });
+});

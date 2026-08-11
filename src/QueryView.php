@@ -1,0 +1,440 @@
+<?php
+
+require_once __DIR__ . '/Include/Config.php';
+require_once __DIR__ . '/Include/PageInit.php';
+
+use ChurchCRM\dto\SystemURLs;
+use ChurchCRM\Utils\InputUtils;
+use ChurchCRM\view\PageHeader;
+
+$sPageTitle = gettext('Query View');
+$sPageSubtitle = gettext('View query results');
+
+// Get the QueryID from the querystring
+$iQueryID = InputUtils::legacyFilterInput($_GET['QueryID'], 'int');
+
+$aBreadcrumbs = PageHeader::breadcrumbs([
+    [gettext('Data & Reports'), '/QueryList.php'],
+    [gettext('Query View')],
+]);
+require_once __DIR__ . '/Include/Header.php';
+
+// Get the query information
+$sSQL = 'SELECT * FROM query_qry WHERE qry_ID = ' . $iQueryID;
+$rsSQL = RunQuery($sSQL);
+extract(mysqli_fetch_array($rsSQL));
+
+// Get the parameters for this query
+$sSQL = 'SELECT * FROM queryparameters_qrp WHERE qrp_qry_ID = ' . $iQueryID . ' ORDER BY qrp_ID';
+$rsParameters = RunQuery($sSQL);
+
+// If the form was submitted or there are no parameters, run the query
+if (isset($_POST['Submit']) || mysqli_num_rows($rsParameters) === 0) {
+    //Check that all validation rules were followed
+    ValidateInput();
+
+    // Any errors?
+    if (count($aErrorText) === 0) {
+        // No errors; process the SQL, run the query, and display the results
+        DisplayQueryInfo();
+        ProcessSQL();
+        DoQuery();
+    } else {
+        // Yes, there were errors; re-display the parameter form (the DisplayParameterForm function will
+        // pick up and display any error messages)
+        DisplayQueryInfo();
+        DisplayParameterForm();
+    }
+} else {
+    // Display the parameter form
+    DisplayQueryInfo();
+    DisplayParameterForm();
+}
+
+// Loops through all the parameters and ensures validation rules have been followed
+function ValidateInput()
+{
+    global $rsParameters;
+    global $_POST;
+    global $vPOST;
+    global $aErrorText;
+
+    // Initialize the validated post array, error text array, and the error flag
+    $vPOST = [];
+    $aErrorText = [];
+    $bError = false;
+
+    // Are there any parameters to loop through?
+    if (mysqli_num_rows($rsParameters)) {
+        mysqli_data_seek($rsParameters, 0);
+    }
+
+    while ($aRow = mysqli_fetch_array($rsParameters)) {
+        extract($aRow);
+
+        // Is the value required?
+        if ($qrp_Required && empty($_POST[$qrp_Alias])) {
+            $bError = true;
+            $aErrorText[$qrp_Alias] = gettext('This value is required.');
+        } else {
+            // Assuming there was no error above...
+            // Validate differently depending on the contents of the qrp_Validation field
+            switch ($qrp_Validation) {
+                // Numeric validation
+                case 'n':
+                    // Is it a number?
+                    if (!is_numeric($_POST[$qrp_Alias])) {
+                        $bError = true;
+                        $aErrorText[$qrp_Alias] = gettext('This value must be numeric.');
+                    } else {
+                        // Is it more than the minimum?
+                        if ($_POST[$qrp_Alias] < $qrp_NumericMin) {
+                            $bError = true;
+                            $aErrorText[$qrp_Alias] = gettext('This value must be at least ') . $qrp_NumericMin;
+                        } elseif ($_POST[$qrp_Alias] > $qrp_NumericMax) {
+                            // Is it less than the maximum?
+                            $bError = true;
+                            $aErrorText[$qrp_Alias] = gettext('This value cannot be more than ') . $qrp_NumericMax;
+                        }
+                    }
+
+                    $vPOST[$qrp_Alias] = InputUtils::legacyFilterInput($_POST[$qrp_Alias], 'int');
+                    break;
+
+                // Alpha validation
+                case 'a':
+                    // Is the length less than the maximum?
+                    if (strlen($_POST[$qrp_Alias]) > $qrp_AlphaMaxLength) {
+                        $bError = true;
+                        $aErrorText[$qrp_Alias] = gettext('This value cannot be more than ') . $qrp_AlphaMaxLength . gettext(' characters long');
+                    } elseif (strlen($_POST[$qrp_Alias]) < $qrp_AlphaMinLength) {
+                        // Is the length more than the minimum?
+                        $bError = true;
+                        $aErrorText[$qrp_Alias] = gettext('This value cannot be less than ') . $qrp_AlphaMinLength . gettext(' characters long');
+                    }
+
+                    $vPOST[$qrp_Alias] = InputUtils::legacyFilterInput($_POST[$qrp_Alias]);
+                    break;
+
+                default:
+                    // Sanitize input to prevent SQL injection
+                    $vPOST[$qrp_Alias] = InputUtils::sanitizeText($_POST[$qrp_Alias]);
+                    break;
+            }
+        }
+    }
+}
+
+// Loops through the list of parameters and replaces their alias in the SQL with the value given for the parameter
+function ProcessSQL()
+{
+    global $vPOST;
+    global $qry_SQL;
+    global $rsParameters;
+    global $cnInfoCentral;
+
+    // Loop through the list of parameters
+    if (mysqli_num_rows($rsParameters)) {
+        mysqli_data_seek($rsParameters, 0);
+    }
+    while ($aRow = mysqli_fetch_array($rsParameters)) {
+        extract($aRow);
+
+        // Debugging code
+        // echo"--" . $qry_SQL ."<br>--" ."~" . $qrp_Alias ."~" ."<br>--" . $vPOST[$qrp_Alias] ."<p>";
+
+        // Replace the placeholder with the parameter value
+        // GHSA-qc2c-qmw4-52fp: Properly escape values before SQL substitution to prevent injection
+        $qrp_Value = escapeQueryParameter($vPOST[$qrp_Alias], $cnInfoCentral);
+        $qry_SQL = str_replace('~' . $qrp_Alias . '~', $qrp_Value, $qry_SQL);
+    }
+}
+
+// Helper function to safely escape and format query parameters
+function escapeQueryParameter($value, $connection)
+{
+    if (is_array($value)) {
+        // For arrays, escape each element and quote it, then join with commas
+        $escapedValues = array_map(function($val) use ($connection) {
+            return"'" . $connection->real_escape_string((string)$val) ."'";
+        }, $value);
+        return implode(',', $escapedValues);
+    }
+    
+    // For single values, determine if numeric or string
+    if (is_numeric($value)) {
+        // Numeric values don't need quotes
+        return (string)$value;
+    }
+    
+    // String values need quotes and escaping
+    return"'" . $connection->real_escape_string((string)$value) ."'";
+}
+
+// Checks if a count is to be displayed, and displays it if required
+function DisplayRecordCount()
+{
+    global $qry_Count;
+    global $rsQueryResults;
+
+    // Are we supposed to display a count for this query?
+    if ($qry_Count === 1) {
+        //Display the count of the recordset
+        echo '<p class="text-center">';
+        echo mysqli_num_rows($rsQueryResults) . gettext(' record(s) returned');
+        echo '</p>';
+    }
+}
+
+// Runs the parameterized SQL and display the results
+function DoQuery()
+{
+    global $cnInfoCentral;
+    global $aRowClass;
+    global $rsQueryResults;
+    global $qry_SQL;
+    global $iQueryID;
+    global $qry_Name;
+    global $qry_Count;
+
+    // Run the SQL
+    $rsQueryResults = RunQuery($qry_SQL); ?>
+<div class="card">
+
+    <div class="card-body">
+        <p class="text-end">
+            <?= $qry_Count ? mysqli_num_rows($rsQueryResults) . gettext(' record(s) returned') : ''; ?>
+        </p>
+
+        <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <?php
+                    // Loop through the fields and write the header row
+                for ($iCount = 0; $iCount < mysqli_num_fields($rsQueryResults); $iCount++) {
+                    // If this field is called"AddToCart", provision a headerless column to hold the cart action buttons
+                    $fieldInfo = mysqli_fetch_field_direct($rsQueryResults, $iCount);
+                    if ($fieldInfo->name !== 'AddToCart') {
+                        echo '<th>' . $fieldInfo->name . '</th>';
+                    } else {
+                        echo '<th></th>';
+                    }
+                } ?>
+            </thead>
+            <tbody>
+    <?php
+    $aAddToCartIDs = [];
+
+    while ($aRow = mysqli_fetch_array($rsQueryResults)) {
+        echo '<tr>';
+
+        // Loop through the fields and write each one
+        for ($iCount = 0; $iCount < mysqli_num_fields($rsQueryResults); $iCount++) {
+            // If this field is called"AddToCart", add a cart button to the form
+            $fieldInfo = mysqli_fetch_field_direct($rsQueryResults, $iCount);
+            if ($fieldInfo->name === 'AddToCart') {
+                ?>
+                <td>
+                    <button class="btn btn-sm btn-secondary AddToCart" data-cart-id="<?= $aRow[$iCount] ?>" data-cart-type="person">
+                        <span class="fa-stack">
+                        <i class="fa-solid fa-square fa-stack-2x"></i>
+                        <i class="fa-solid fa-cart-plus fa-stack-1x fa-inverse"></i>
+                        </span>
+                    </button>
+                </td>
+                <?php
+
+                $aAddToCartIDs[] = $aRow[$iCount];
+            } else {
+                // ...otherwise just render the field
+                // Write the actual value of this row
+                echo '<td>' . InputUtils::escapeHTML($aRow[$iCount]) . '</td>';
+            }
+        }
+
+        echo '</tr>';
+    } ?>
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="card-footer">
+        <p>
+        <?php if (count($aAddToCartIDs)) { ?>
+            <div class="col-sm-offset-1">
+                <input type="hidden" value="<?= implode(',', $aAddToCartIDs) ?>" name="BulkAddToCart">
+                <button type="button" id="addResultsToCart" class="btn btn-success" > <?= gettext('Add Results to Cart') ?></button>
+                <button type="button" id="removeResultsFromCart" class="btn btn-danger" > <?= gettext('Remove Results from Cart') ?></button>
+            </div>
+            <script nonce="<?= SystemURLs::getCSPNonce() ?>">
+                // Wait for locales to load before setting up cart handlers
+                // CartManager uses i18next for notifications
+                window.CRM.onLocalesReady(function() {
+                    $("#addResultsToCart").click(function () {
+                        var selectedPersons = <?= json_encode($aAddToCartIDs) ?>;
+                        window.CRM.cartManager.addPerson(selectedPersons, {
+                            showNotification: true
+                        });
+                    });
+
+                    $("#removeResultsFromCart").click(function(){
+                        var selectedPersons = <?= json_encode($aAddToCartIDs) ?>;
+                        window.CRM.cartManager.removePerson(selectedPersons, {
+                            confirm: true,
+                            showNotification: true
+                        });
+                    });
+                });
+            </script>
+
+        <?php } ?>
+        </p>
+
+        <p class="text-end">
+            <?= '<a href="QueryView.php?QueryID=' . $iQueryID . '">' . gettext('Run Query Again') . '</a>'; ?>
+        </p>
+    </div>
+
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center">
+        <div class="card-title">Query</div>
+    </div>
+    <div class="card-body">
+        <code><?= str_replace(chr(13), '<br>', InputUtils::escapeHTML($qry_SQL)); ?></code>
+    </div>
+</div>
+    <?php
+}
+
+// Displays the name and description of the query
+function DisplayQueryInfo()
+{
+    global $qry_Name;
+    global $qry_Description; ?>
+<div class="card">
+    <div class="card-body">
+        <p><strong><?= gettext($qry_Name); ?></strong></p>
+        <p><?= gettext($qry_Description); ?></p>
+    </div>
+</div>
+    <?php
+}
+
+function getQueryFormInput($queryParameters)
+{
+    global $aErrorText;
+
+    extract($queryParameters);
+
+    $input = '';
+    $label = '<label>' . gettext($qrp_Name) . '</label>';
+    $helpMsg = '<div>' . gettext($qrp_Description) . '</div>';
+
+    switch ($qrp_Type) {
+        // Standard INPUT box
+        case 0:
+            $input = '<input size="' . $qrp_InputBoxSize . '" name="' . $qrp_Alias . '" type="text" value="' . $qrp_Default . '" class="form-control">';
+            break;
+
+        // SELECT box with OPTION tags supplied in the queryparameteroptions_qpo table
+        case 1:
+            // Get the query parameter options for this parameter
+            $sSQL = 'SELECT * FROM queryparameteroptions_qpo WHERE qpo_qrp_ID = ' . $qrp_ID;
+            $rsParameterOptions = RunQuery($sSQL);
+
+            $input = '<select name="' . $qrp_Alias . '" class="form-select">';
+            $input .= '<option disabled selected value> -- ' . gettext("select an option") . ' -- </option>';
+
+            // Loop through the parameter options
+            while ($ThisRow = mysqli_fetch_array($rsParameterOptions)) {
+                extract($ThisRow);
+                $input .= '<option value="' . $qpo_Value . '">' . gettext($qpo_Display) . '</option>';
+            }
+
+            $input .= '</select>';
+            break;
+
+        // SELECT box with OPTION tags provided via a SQL query
+        case 2:
+            // Run the SQL to get the options
+            $rsParameterOptions = RunQuery($qrp_OptionSQL);
+
+            $input .= '<select name="' . $qrp_Alias . '" class="form-select">';
+            $input .= '<option disabled selected value> -- select an option -- </option>';
+
+            while ($ThisRow = mysqli_fetch_array($rsParameterOptions)) {
+                extract($ThisRow);
+                $input .= '<option value="' . $Value . '">' . $Display . '</option>';
+            }
+
+            $input .= '</select>';
+            break;
+
+        case 3:
+            // Run the SQL to get the options
+            $rsParameterOptions = RunQuery($qrp_OptionSQL);
+
+            $input .= '<select name="' . $qrp_Alias . '[]" class="form-select" size="10" multiple="multiple">';
+            $input .= '<option disabled selected value> -- select an option -- </option>';
+
+            while ($ThisRow = mysqli_fetch_array($rsParameterOptions)) {
+                extract($ThisRow);
+                $input .= '<option value="' . $Value . '">' . $Display . '</option>';
+            }
+
+            $input .= '</select>';
+            break;
+    }
+
+    $helpBlock = '<div class="help-block">' . $helpMsg . '</div>';
+
+    if ($aErrorText[$qrp_Alias]) {
+        $errorMsg = '<div>' . $aErrorText[$qrp_Alias] . '</div>';
+        $helpBlock = '<div class="help-block">' . $helpMsg . $errorMsg . '</div>';
+        return '<div class="mb-3 has-error">' . $label . $input . $helpBlock . '</div>';
+    }
+
+    return '<div class="mb-3">' . $label . $input . $helpBlock . '</div>';
+}
+
+// Displays a form to enter values for each parameter, creating INPUT boxes and SELECT drop-downs as necessary
+function DisplayParameterForm()
+{
+    global $rsParameters;
+    global $iQueryID; ?>
+<div class="row">
+    <div class="col-md-8">
+
+        <div class="card">
+
+            <div class="card-body">
+
+                <form method="post" action="QueryView.php?QueryID=<?= $iQueryID ?>">
+    <?php
+// Loop through the parameters and display an entry box for each one
+    if (mysqli_num_rows($rsParameters)) {
+        mysqli_data_seek($rsParameters, 0);
+    }
+    while ($aRow = mysqli_fetch_array($rsParameters)) {
+        echo getQueryFormInput($aRow);
+    } ?>
+
+                    <div class="mb-3 text-end">
+                        <input class="btn btn-primary" type="Submit" value="<?= gettext("Execute Query") ?>" name="Submit">
+                    </div>
+                </form>
+
+            </div>
+        </div> <!-- box -->
+
+    </div>
+
+</div>
+
+    <?php
+}
+
+require_once __DIR__ . '/Include/Footer.php';

@@ -1,0 +1,237 @@
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: POEditor.com\n"
+"Project-Id-Version: ChurchCRM\n"
+"Language: en-za\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Context: queryparameteroptions_qpo
+#: 
+msgid "State"
+msgstr "Province"
+
+#: 
+msgid "Zip"
+msgstr "Postcode"
+
+#: 
+msgid "Work/Other Email"
+msgstr "Work / Other Email"
+
+#: 
+msgid "Based on filters below.."
+msgstr "Based on filters below ..."
+
+#: 
+msgid "Mobile Phone"
+msgstr "Cellphone"
+
+#: 
+msgid "Select the group to which you would like to add your cart"
+msgstr "Select the group which you would like to add to your cart"
+
+#: 
+#, fuzzy
+msgid "Load Authorized"
+msgstr "Load Authorised Transactions"
+
+#: 
+msgid "Family Cell Phone"
+msgstr "Family Cellphone"
+
+#: 
+msgid "Personal Cell Phone"
+msgstr "Personal Cellphone"
+
+#: 
+msgid "Personal Work/Other Email"
+msgstr "Personal Work / Other Email"
+
+#: 
+msgid "No custom Family fields have been added yet"
+msgstr "No custom family fields have been added yet"
+
+#: 
+msgid "Help on types.."
+msgstr "Help on types..."
+
+#: 
+msgid "Unk"
+msgstr "-"
+
+#: 
+msgid "You are about to email copy of the family information to the following emails"
+msgstr "You are about to email a copy of the family information to the following emails"
+
+#: 
+msgid "Check"
+msgstr "Cheque"
+
+#: 
+msgid "Generate Catalog"
+msgstr "Generate Catalogue"
+
+#: 
+#, fuzzy
+msgid "Maximum number of neighbors"
+msgstr "Maximum number of neighbours"
+
+#: 
+msgid "Neighbor Families"
+msgstr "Neighbour Families"
+
+#: 
+msgid "Show Neighbors"
+msgstr "Show Neighbours"
+
+#: 
+msgid "NonDeductible amount can't be greater than total amount."
+msgstr "Non-deductible amount can't be greater than total amount."
+
+#: 
+msgid "Check number not valid for 'CASH' payment"
+msgstr "Cheque number not valid for 'CASH' payment"
+
+#: 
+msgid "Scan check"
+msgstr "Scan cheque"
+
+#: 
+msgid "find family from check account #"
+msgstr "find family from cheque account #"
+
+#: 
+msgid "Set default check account number for family"
+msgstr "Set default cheque account number for family"
+
+#: 
+msgid "Fall"
+msgstr "Autumn"
+
+#: 
+msgid "Money amount too large. Maximum is $999999999.99"
+msgstr "Money amount too large. Maximum is R 999999999.99"
+
+#: 
+msgid "City, State, Zip"
+msgstr "City, Province, Postcode"
+
+#: 
+msgid "Cell Phone"
+msgstr "Cellphone"
+
+#: 
+msgid "This option requires at least version 3.22 of MySQL!  Hit browser back button to return to ChurchCRM."
+msgstr "This option requires at least MySQL version 3.22!  Hit browser back button to return to ChurchCRM."
+
+#: 
+msgid "Total of all purchases: $"
+msgstr "Total of all purchases: R"
+
+#: 
+msgid "Total purchases: $"
+msgstr "Total purchases: R"
+
+#: 
+msgid "Paid by (  ) Cash    (  ) Check    (  ) Credit card __ __ __ __    __ __ __ __    __ __ __ __    __ __ __ __  Exp __ / __"
+msgstr "Paid by (  ) Cash    (  ) Cheque    (  ) Credit card __ __ __ __    __ __ __ __    __ __ __ __    __ __ __ __  Exp __ / __"
+
+#: 
+msgid "Mobile"
+msgstr "Cell"
+
+#: 
+msgid "Total $"
+msgstr "Total R"
+
+#: 
+#, fuzzy
+msgid "with this property..."
+msgstr "with this property..."
+
+#: 
+msgid "These are the family role numbers designated as head of house"
+msgstr "These are the family role numbers designated as head of household"
+
+#: 
+msgid "Default State - Must be 2-letter abbreviation!"
+msgstr "Default Province - Must be 2-letter abbreviation!"
+
+#: 
+msgid "Number of checks for Deposit Slip Report"
+msgstr "Number of cheques for Deposit Slip Report"
+
+#. Context: queryparameteroptions_qpo
+#: 
+msgid "Zip Code"
+msgstr "Postcode"
+
+#: 
+msgid "Page not fond"
+msgstr "Page not found"
+
+#: 
+msgid "Make user-entered zip/postcodes UPPERCASE when saving to the database."
+msgstr "Make user-entered zip/postcodes in UPPER-CASE when saving to the database."
+
+#: 
+msgid "Church Checking Account Number"
+msgstr "Church Chequeing Account Number"
+
+#: 
+#, fuzzy
+msgid "Show neighbors with these classifications"
+msgstr "Show neighbours with these classifications"
+
+#: 
+msgid "KioskVisibilityTimestamp"
+msgstr "Kiosk Visibility Timestamp"
+
+#: 
+msgid "Check Number"
+msgstr "Cheque Number"
+
+#: 
+msgid "Show Family Head of House Names"
+msgstr "Show Family Head of Household Names"
+
+#: 
+msgid "PersonID for Cart must be numeric"
+msgstr "Person ID for Cart must be numeric"
+
+#: 
+msgid "Set the encryption system to use - ssl (deprecated) or tls"
+msgstr "Set the encryption system to use - SSL (deprecated) or TLS"
+
+#: 
+#, fuzzy
+msgid "not found or user without an email"
+msgstr "not found or user without an email"
+
+#: 
+msgid "Foreground Color"
+msgstr "Foreground Colour"
+
+#: 
+msgid "Background Color"
+msgstr "Background Colour"
+
+#: 
+msgid "invalid event type id"
+msgstr "invalid event type ID"
+
+#: 
+msgid "Unexpected Person Id"
+msgstr "Unexpected Person ID"
+
+#: 
+msgid "Invalid List id"
+msgstr "Invalid List ID"
+
+#: 
+msgid "Default Zip"
+msgstr "Default Postcode"
+

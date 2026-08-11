@@ -1,0 +1,236 @@
+/**
+ * Dynamic Locale Loader
+ * Loads locale files on-demand for moment, FullCalendar, and Bootstrap DatePicker
+ */
+
+window.CRM = window.CRM || {};
+
+/**
+ * Remove the global "Preparing your workspace" overlay.
+ * Logged-out pages (login, password reset) do not load Footer.js — only locale-loader runs —
+ * so this must run here when locales are ready. Logged-in pages also load Footer.js, which
+ * removes the overlay again (no-op if already gone).
+ */
+function removeCrmGlobalLoading() {
+  document.getElementById("crmGlobalLoading")?.remove();
+}
+
+/**
+ * Dynamically load a script file
+ * @param {string} url - The URL of the script to load
+ * @returns {Promise<void>}
+ */
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = url;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Check browser locale against current ChurchCRM locale and notify user if different
+ */
+function checkBrowserLocale() {
+  // Skip if already dismissed for current version
+  const dismissKey = "browser-locale-prompt-dismissed";
+  const dismissedVersion = localStorage.getItem(dismissKey);
+  if (dismissedVersion === window.CRM.version) {
+    return;
+  }
+
+  // Get browser locale directly from navigator
+  const browserLocale = navigator.language || navigator.userLanguage;
+  if (!browserLocale) {
+    return;
+  }
+
+  // Extract language code (e.g., "en-US" -> "en", "ja" -> "ja")
+  const browserLangCode = browserLocale.split("-")[0].split("_")[0];
+  const crmLangCode = window.CRM.shortLocale || "";
+
+  // Compare language codes only (ignore region variants)
+  if (browserLangCode === crmLangCode) {
+    return;
+  }
+
+  const showPrompt = () => {
+    // Tabler layout (v2) uses `.page-body .container-xl` as primary content container.
+    // Fall back to older AdminLTE wrappers if present (legacy pages).
+    const container =
+      document.querySelector(".page-body .container-xl") ||
+      document.querySelector(".page-body") ||
+      document.querySelector(".content-wrapper > section.content > .container-fluid") ||
+      document.querySelector(".content-wrapper");
+    if (!container) {
+      return;
+    }
+
+    const alert = document.createElement("div");
+    alert.className = "alert alert-info alert-dismissible fade show";
+    alert.style.marginBottom = "1rem";
+
+    const userSettingsUrl = window.CRM.root + "/v2/user/" + window.CRM.userId;
+
+    alert.innerHTML = `
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <strong>${i18next.t("Browser language preference detected")}</strong>
+      <div>${i18next.t("Your browser language preference differs from your ChurchCRM locale")}.</div>
+      <div class="mt-2">
+        <a href="${userSettingsUrl}" class="btn btn-sm btn-primary">
+          <i class="fa-solid fa-cog me-1"></i>${i18next.t("Change Your Locale")}
+        </a>
+        <button id="dismissBrowserLocaleBtn" class="btn btn-sm btn-outline-secondary ms-2">${i18next.t("Dismiss")}</button>
+      </div>
+    `;
+
+    container.insertAdjacentElement("afterbegin", alert);
+
+    // Handle dismiss and close buttons
+    const markDismissed = () => localStorage.setItem(dismissKey, window.CRM.version);
+    alert.querySelector("#dismissBrowserLocaleBtn").addEventListener("click", () => {
+      markDismissed();
+      alert.remove();
+    });
+    alert.querySelector(".btn-close")?.addEventListener("click", markDismissed);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", showPrompt);
+  } else {
+    setTimeout(showPrompt, 500); // Small delay to ensure content wrapper exists
+  }
+}
+
+/**
+ * Load all locale files for the specified locale
+ * @param {object} localeConfig - Locale configuration from locales.json
+ */
+async function loadLocaleFiles(localeConfig) {
+  // Validate localeConfig exists
+  if (!localeConfig) {
+    console.warn("localeConfig is null or undefined, skipping locale loading");
+    window.CRM.i18keys = {};
+    window.CRM.localesLoaded = true;
+    window.dispatchEvent(new Event("CRM.localesReady"));
+    removeCrmGlobalLoading();
+    return;
+  }
+
+  const rootPath = window.CRM.root || "";
+  const promises = [];
+
+  try {
+    // Load i18n translation keys from JSON
+    // Skip loading for en_US as it's the base language (no translation file needed)
+    if (localeConfig.locale && localeConfig.locale !== "en_US") {
+      const i18nPath = `${rootPath}/locale/i18n/${localeConfig.locale}.json`;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        let response;
+        try {
+          response = await fetch(i18nPath, { signal: controller.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
+        if (response.ok) {
+          window.CRM.i18keys = await response.json();
+        } else {
+          console.warn(`i18n keys not found for locale: ${localeConfig.locale}, using empty object`);
+          window.CRM.i18keys = {};
+        }
+      } catch (e) {
+        console.warn(`Failed to load i18n keys for ${localeConfig.locale}:`, e);
+        window.CRM.i18keys = {};
+      }
+    } else {
+      // en_US uses empty object (base language, no translations needed)
+      window.CRM.i18keys = {};
+    }
+
+    // Load Moment.js locale if configured
+    // Skip for 'en' as it's the default locale built into moment.js
+    if (localeConfig.momentLocale && localeConfig.momentLocale !== "en" && typeof moment !== "undefined") {
+      const momentPath = `${rootPath}/locale/vendor/moment/${localeConfig.momentLocale}.js`;
+      promises.push(
+        loadScript(momentPath)
+          .then(() => {
+            if (typeof moment !== "undefined" && typeof moment.locale === "function") {
+              moment.locale(localeConfig.momentLocale);
+            }
+          })
+          .catch((e) => console.warn(`Failed to load moment locale ${localeConfig.momentLocale}:`, e)),
+      );
+    } else if (localeConfig.momentLocale === "en" && typeof moment !== "undefined") {
+      // Set to 'en' without loading (built-in default)
+      moment.locale("en");
+    }
+
+    // Load Bootstrap DatePicker locale if configured
+    if (localeConfig.datePicker) {
+      const dpPath = `${rootPath}/locale/vendor/bootstrap-datepicker/bootstrap-datepicker.${localeConfig.languageCode}.min.js`;
+      promises.push(
+        loadScript(dpPath).catch((e) =>
+          console.warn(`Failed to load DatePicker locale ${localeConfig.languageCode}:`, e),
+        ),
+      );
+    }
+
+    // Load FullCalendar locale if configured
+    if (localeConfig.fullCalendar) {
+      let fcLocale = localeConfig.languageCode.toLowerCase();
+      if (localeConfig.fullCalendarLocale) {
+        fcLocale = localeConfig.fullCalendarLocale;
+      }
+      const fcPath = `${rootPath}/locale/vendor/fullcalendar/${fcLocale}.js`;
+      promises.push(
+        loadScript(fcPath).catch((e) => console.warn(`Failed to load FullCalendar locale ${fcLocale}:`, e)),
+      );
+    }
+
+    // Wait for all locale files to load
+    await Promise.all(promises);
+
+    // Initialize i18next after locale keys are loaded
+    const i18nLng = window.CRM.shortLocale || "en";
+    if (typeof i18next !== "undefined" && window.CRM.i18keys) {
+      const i18nextOpt = {
+        lng: i18nLng,
+        nsSeparator: false,
+        keySeparator: false,
+        pluralSeparator: false,
+        contextSeparator: false,
+        fallbackLng: false,
+        resources: {},
+      };
+      i18nextOpt.resources[i18nLng] = {
+        translation: window.CRM.i18keys,
+      };
+      i18next.init(i18nextOpt);
+
+      // Detect browser locale and prompt user if different
+      checkBrowserLocale();
+
+      // Set flag BEFORE dispatching so synchronous event listeners see it as true
+      window.CRM.localesLoaded = true;
+      window.dispatchEvent(new Event("CRM.localesReady"));
+    } else {
+      // i18next not on page (edge case) — still unblock listeners and UI
+      window.CRM.localesLoaded = true;
+      window.dispatchEvent(new Event("CRM.localesReady"));
+    }
+  } catch (error) {
+    console.error("Error loading locale files:", error);
+    // Even on error, mark as loaded to prevent infinite waiting
+    window.CRM.localesLoaded = true;
+    window.dispatchEvent(new Event("CRM.localesReady"));
+  } finally {
+    removeCrmGlobalLoading();
+  }
+}
+
+// Export for use in other scripts
+window.CRM.loadLocaleFiles = loadLocaleFiles;

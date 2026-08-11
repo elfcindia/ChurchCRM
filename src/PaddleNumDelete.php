@@ -1,0 +1,16 @@
+<?php
+
+require_once __DIR__ . '/Include/Config.php';
+require_once __DIR__ . '/Include/PageInit.php';
+
+use ChurchCRM\Utils\InputUtils;
+use ChurchCRM\Utils\RedirectUtils;
+
+$iPaddleNumID = InputUtils::legacyFilterInput($_GET['PaddleNumID'], 'int');
+$linkBack = RedirectUtils::getLinkBackFromRequest('FindFundRaiser.php');
+
+$iFundRaiserID = $_SESSION['iCurrentFundraiser'];
+
+$sSQL ="DELETE FROM paddlenum_pn WHERE pn_id=$iPaddleNumID AND pn_fr_id=$iFundRaiserID";
+RunQuery($sSQL);
+RedirectUtils::redirect($linkBack);

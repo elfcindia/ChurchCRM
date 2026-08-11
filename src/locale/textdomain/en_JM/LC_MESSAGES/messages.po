@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: POEditor.com\n"
+"Project-Id-Version: ChurchCRM\n"
+"Language: en-jm\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Context: queryparameteroptions_qpo
+#: 
+msgid "State"
+msgstr "Parish"
+
+#: 
+msgid "City, State, Zip"
+msgstr "City, Parish, Zip"
+
+#: 
+msgid "Default State - Must be 2-letter abbreviation!"
+msgstr "Default Parish - Must be 2-letter abbreviation!"
+

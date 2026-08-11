@@ -1,0 +1,52 @@
+<?php
+
+use ChurchCRM\dto\ChurchMetaData;
+use ChurchCRM\dto\SystemURLs;
+
+$sPageTitle = $calendarName;
+require(SystemURLs::getDocumentRoot() ."/Include/HeaderNotLoggedIn.php");
+?>
+<script src="<?= SystemURLs::assetVersioned('/skin/external/moment/moment-with-locales.min.js') ?>"></script>
+<script src="<?= SystemURLs::assetVersioned('/skin/external/fullcalendar/index.global.min.js') ?>"></script>
+<div class="register-box w-100" style="margin-top:5px;">
+    <div class="register-logo">
+      <a href="<?= SystemURLs::getRootPath() ?>/"><?=  ChurchMetaData::getChurchName() ?></a>: <?= $calendarName ?></h1>
+      <p></p>
+    </div>
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                <!-- THE CALENDAR -->
+                <div id="calendar"></div>
+            </div>
+        </div>
+        <!-- /. box -->
+      </div>
+    </div>
+</div>
+<script nonce="<?= SystemURLs::getCSPNonce() ?>">
+document.addEventListener('DOMContentLoaded', function() {
+  window.CRM.fullcalendar =  new FullCalendar.Calendar(document.getElementById('calendar'), {
+      headerToolbar: {
+        start: 'prev,next today',
+        center: 'title',
+        end: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+      },
+      height: 600,
+      selectable: false,
+      editable: false,
+      selectMirror: true,
+      locale: window.CRM.lang,
+      timeZone: '<?= ChurchMetaData::getChurchTimeZone() ?>',
+      eventSources: [
+        '<?= $eventSource ?>'
+      ]
+  });
+
+  window.CRM.fullcalendar.render();
+});
+</script>
+
+<?php
+require(SystemURLs::getDocumentRoot() ."/Include/FooterNotLoggedIn.php");

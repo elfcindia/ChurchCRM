@@ -1,0 +1,21 @@
+# Disable directory listings
+Options -Indexes
+
+RewriteEngine On
+
+# Automatically handle subdirectory installations
+# The RewriteRule will pass the matched path to index.php
+# ChurchCRM uses the $sRootPath from Config.php to handle subdirectories
+# 
+# NOTE: If you have issues with routing, you may need to set RewriteBase manually:
+# For root installation (/): RewriteBase /
+# For subdirectory (/churchcrm): RewriteBase /churchcrm
+# For subdirectory (/xyz): RewriteBase /xyz
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+<files rector.php>
+order allow,deny
+deny from all
+</files>

@@ -1,0 +1,59 @@
+@use "sass:meta";
+/*! DO NOT MANUALLY EDIT skin/churchcrm.min.css
+
+    Please make changes to skin/scss/*.scss and recompile with SASS. http://sass-lang.com/
+
+    sass --watch src/skin/churchcrm.scss:src/skin/churchcrm.min.css --style compressed
+
+*/
+
+// All vendor CSS is imported via webpack/skin-main.js (node_modules imports).
+// This file contains only ChurchCRM custom SCSS.
+
+// Font Awesome 7 compatibility: keep v6 default icon width unless explicitly fixed.
+.fa,
+.fa-solid,
+.fas,
+.fa-regular,
+.far,
+.fa-brands,
+.fab {
+    --fa-width: auto;
+}
+
+// Preserve explicit fixed-width icon behavior used throughout the app.
+.fa-fw {
+    --fa-width: 1.25em;
+    width: var(--fa-width);
+    text-align: center;
+}
+
+// Import ChurchCRM custom styles
+
+// Utility Classes - Reusable CSS classes for common styling patterns
+@include meta.load-css("scss/utility-classes");
+
+// UI Components - Custom ChurchCRM UI elements
+@include meta.load-css("scss/ui-components");
+
+@include meta.load-css("scss/events");
+@include meta.load-css("scss/images");
+@include meta.load-css("scss/avatars");
+@include meta.load-css("scss/maps");
+@include meta.load-css("scss/cart");
+@include meta.load-css("scss/calendars");
+@include meta.load-css("scss/_authentication-pages");
+@include meta.load-css("scss/kiosk");
+@include meta.load-css("scss/groups");
+@include meta.load-css("scss/finance");
+
+// Floating Action Buttons — menu toggle, add person, add family
+@include meta.load-css("scss/fab");
+
+// Tabler custom styles — color overrides, DataTables/TomSelect skins
+@include meta.load-css("scss/_tabler-bridge");
+
+html,
+body {
+    font-size: 14px;
+}
