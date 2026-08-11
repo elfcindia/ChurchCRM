@@ -60,66 +60,67 @@
     # serves real static files directly and falls back to the sub-app's
     # index.php for all other requests (including clean URLs like /session/begin).
 
-    # Each matcher covers both the bare prefix (e.g. /admin, no trailing
-    # slash) and everything beneath it (/admin/*). Matching only /admin/*
-    # left bare-prefix requests (which the app itself issues — e.g. its
-    # own post-login redirect to plain "/admin") falling through to the
-    # legacy catch-all below, which 404s since it doesn't know that path.
-    # `handle` only takes a single path argument, so multiple patterns need
-    # a named matcher (@name) with space-separated paths instead.
+    # The app itself routinely issues bare-prefix redirects/links (e.g. its
+    # own post-login "redirect admin to /admin", no trailing slash). Slim's
+    # router requires the trailing slash to match each sub-app's root route
+    # — without it, PATH_INFO strips down to "", which FastRoute does NOT
+    # treat as equivalent to "/", so the app itself 404s even once Caddy
+    # routes the request to the right index.php. Redirecting the bare
+    # prefix to add the trailing slash first avoids that mismatch.
+
+    redir /session /session/ 308
+    redir /api /api/ 308
+    redir /v2 /v2/ 308
+    redir /admin /admin/ 308
+    redir /kiosk /kiosk/ 308
+    redir /plugins /plugins/ 308
+    redir /external /external/ 308
+    redir /setup /setup/ 308
 
     # Session management: /session/begin, /session/end, /session/two-factor, etc.
-    @session path /session /session/*
-    handle @session {
+    handle /session/* {
         try_files {path} /session/index.php
         php_server
     }
 
     # REST API: /api/persons, /api/families, /api/events, etc.
-    @api path /api /api/*
-    handle @api {
+    handle /api/* {
         try_files {path} /api/index.php
         php_server
     }
 
     # Modern MVC pages: /v2/dashboard, /v2/people, etc.
-    @v2 path /v2 /v2/*
-    handle @v2 {
+    handle /v2/* {
         try_files {path} /v2/index.php
         php_server
     }
 
     # Admin panel: /admin/settings, /admin/users, etc.
-    @admin path /admin /admin/*
-    handle @admin {
+    handle /admin/* {
         try_files {path} /admin/index.php
         php_server
     }
 
     # Kiosk / check-in module
-    @kiosk path /kiosk /kiosk/*
-    handle @kiosk {
+    handle /kiosk/* {
         try_files {path} /kiosk/index.php
         php_server
     }
 
     # Plugin system
-    @plugins path /plugins /plugins/*
-    handle @plugins {
+    handle /plugins/* {
         try_files {path} /plugins/index.php
         php_server
     }
 
     # External integrations (public calendar, self-registration, etc.)
-    @external path /external /external/*
-    handle @external {
+    handle /external/* {
         try_files {path} /external/index.php
         php_server
     }
 
     # Setup wizard (only needed on first install)
-    @setup path /setup /setup/*
-    handle @setup {
+    handle /setup/* {
         try_files {path} /setup/index.php
         php_server
     }
