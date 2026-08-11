@@ -88,9 +88,13 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" &&
     rm composer-setup.php
 
 # Install NVM + Node.js (needed to run npm run deploy inside the container)
+# NVM_DIR is pinned explicitly: some base images set XDG_CONFIG_HOME, which
+# nvm's installer honors as its default install location (e.g. /config/nvm)
+# instead of the conventional ~/.nvm — pinning avoids that mismatch.
+ENV NVM_DIR=/root/.nvm
 RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh -o /opt/node-install.sh && \
     chmod a+x /opt/node-install.sh && \
     /opt/node-install.sh && \
     rm /opt/node-install.sh
 
-RUN /bin/bash -c "source /root/.nvm/nvm.sh && nvm install 24 && npm install -g node-gyp"
+RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install 24 && npm install -g node-gyp"
