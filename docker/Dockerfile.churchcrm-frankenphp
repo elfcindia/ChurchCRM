@@ -58,8 +58,12 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" && \
     sed -i 's/^memory_limit.*$/memory_limit = 256M/g' $PHP_INI_DIR/php.ini && \
     sed -i 's/^max_execution_time.*$/max_execution_time = 120/g' $PHP_INI_DIR/php.ini
 
-# Copy the Caddyfile that routes ChurchCRM's Slim sub-applications correctly
-COPY ./frankenphp/Caddyfile /etc/caddy/Caddyfile
+# Copy the Caddyfile that routes ChurchCRM's Slim sub-applications correctly.
+# FrankenPHP's entrypoint reads /etc/frankenphp/Caddyfile, NOT /etc/caddy/Caddyfile
+# (the latter is the vanilla-Caddy convention) — using the wrong path silently
+# falls back to FrankenPHP's built-in default config, ignoring our routing and
+# port settings entirely.
+COPY ./frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 
 
 # Production stage - minimal runtime
