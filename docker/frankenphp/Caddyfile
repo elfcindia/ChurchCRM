@@ -60,56 +60,66 @@
     # serves real static files directly and falls back to the sub-app's
     # index.php for all other requests (including clean URLs like /session/begin).
 
-    # Each block matches both the bare prefix (e.g. /admin, no trailing
+    # Each matcher covers both the bare prefix (e.g. /admin, no trailing
     # slash) and everything beneath it (/admin/*). Matching only /admin/*
     # left bare-prefix requests (which the app itself issues — e.g. its
     # own post-login redirect to plain "/admin") falling through to the
     # legacy catch-all below, which 404s since it doesn't know that path.
+    # `handle` only takes a single path argument, so multiple patterns need
+    # a named matcher (@name) with space-separated paths instead.
 
     # Session management: /session/begin, /session/end, /session/two-factor, etc.
-    handle /session /session/* {
+    @session path /session /session/*
+    handle @session {
         try_files {path} /session/index.php
         php_server
     }
 
     # REST API: /api/persons, /api/families, /api/events, etc.
-    handle /api /api/* {
+    @api path /api /api/*
+    handle @api {
         try_files {path} /api/index.php
         php_server
     }
 
     # Modern MVC pages: /v2/dashboard, /v2/people, etc.
-    handle /v2 /v2/* {
+    @v2 path /v2 /v2/*
+    handle @v2 {
         try_files {path} /v2/index.php
         php_server
     }
 
     # Admin panel: /admin/settings, /admin/users, etc.
-    handle /admin /admin/* {
+    @admin path /admin /admin/*
+    handle @admin {
         try_files {path} /admin/index.php
         php_server
     }
 
     # Kiosk / check-in module
-    handle /kiosk /kiosk/* {
+    @kiosk path /kiosk /kiosk/*
+    handle @kiosk {
         try_files {path} /kiosk/index.php
         php_server
     }
 
     # Plugin system
-    handle /plugins /plugins/* {
+    @plugins path /plugins /plugins/*
+    handle @plugins {
         try_files {path} /plugins/index.php
         php_server
     }
 
     # External integrations (public calendar, self-registration, etc.)
-    handle /external /external/* {
+    @external path /external /external/*
+    handle @external {
         try_files {path} /external/index.php
         php_server
     }
 
     # Setup wizard (only needed on first install)
-    handle /setup /setup/* {
+    @setup path /setup /setup/*
+    handle @setup {
         try_files {path} /setup/index.php
         php_server
     }
