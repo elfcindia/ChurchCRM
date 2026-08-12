@@ -18,10 +18,10 @@ use ChurchCRM\model\ChurchCRM\Map\PersonTableMap;
 use ChurchCRM\model\ChurchCRM\Map\WorshipAttendTableMap;
 use ChurchCRM\model\ChurchCRM\WorshipAttend;
 use ChurchCRM\model\ChurchCRM\WorshipAttendQuery;
+use ChurchCRM\Utils\DateTimeUtils;
 use ChurchCRM\Utils\InputUtils;
 use DateTime;
 use DateTimeImmutable;
-use DateTimeZone;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Propel;
 
@@ -29,9 +29,7 @@ class WorshipAttendanceService
 {
     public static function localTodayYmd(): string
     {
-        $tzName = SystemConfig::getValue('sTimeZone') ?: 'UTC';
-
-        return (new DateTimeImmutable('now', new DateTimeZone($tzName)))->format('Y-m-d');
+        return (new DateTimeImmutable('now', DateTimeUtils::getConfiguredTimezone()))->format('Y-m-d');
     }
 
     public static function normalizeDate(?string $dateYmd): string

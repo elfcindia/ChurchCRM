@@ -15,11 +15,19 @@ class DateTimeUtils
     /**
      * Get the configured timezone for the church.
      *
+     * Falls back to UTC if sTimeZone is unset or holds an invalid identifier
+     * (DateTimeZone throws on anything else, e.g. an empty string), so a bad
+     * config value can't 500 every date-handling page in the app.
+     *
      * @return \DateTimeZone The timezone configured in sTimeZone system setting
      */
     public static function getConfiguredTimezone(): \DateTimeZone
     {
-        return new \DateTimeZone(SystemConfig::getValue('sTimeZone'));
+        try {
+            return new \DateTimeZone(SystemConfig::getValue('sTimeZone') ?: 'UTC');
+        } catch (\Exception $e) {
+            return new \DateTimeZone('UTC');
+        }
     }
 
     /**

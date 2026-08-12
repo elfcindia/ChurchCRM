@@ -491,7 +491,14 @@ $app->group('/system', function (RouteCollectorProxy $group): void {
         SystemConfig::setValue('sChurchEmail', $body['sChurchEmail'] ?? '');
         SystemConfig::setValue('iChurchLatitude', $latitude);
         SystemConfig::setValue('iChurchLongitude', $longitude);
-        SystemConfig::setValue('sTimeZone', $body['sTimeZone'] ?? '');
+        // Only accept a valid IANA identifier — an empty/garbage value here
+        // would make DateTimeUtils::getConfiguredTimezone() 500 on every
+        // date-handling page (login, calendar, dashboard, etc.). If invalid,
+        // silently keep whatever was already saved instead of overwriting it.
+        $timeZoneInput = trim((string) ($body['sTimeZone'] ?? ''));
+        if (in_array($timeZoneInput, timezone_identifiers_list(), true)) {
+            SystemConfig::setValue('sTimeZone', $timeZoneInput);
+        }
         SystemConfig::setValue('sChurchWebSite', $body['sChurchWebSite'] ?? '');
         SystemConfig::setValue('sLanguage', $body['sLanguage'] ?? 'en_US');
         $distanceUnit = $body['sDistanceUnit'] ?? 'miles';
