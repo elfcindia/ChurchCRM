@@ -43,7 +43,7 @@ class Menu
         }
         $menus = array_merge($menus, [
             'SundaySchool'  => self::getSundaySchoolMenu(),
-            'Communication' => self::getCommunicationMenu(),
+            'Communication' => self::getCommunicationMenu($isAdmin),
             'Events'        => self::getEventsMenu(isAddEventEnabled: $currentUser->isAddEventEnabled()),
             'Fundraiser'    => self::getFundraisersMenu(),
             'Reports'       => self::getReportsMenu(),
@@ -202,10 +202,11 @@ class Menu
         $menu->addSubMenu(new MenuItem($label, $uri, true, 'fa-chalkboard'));
     }
 
-    private static function getCommunicationMenu(): MenuItem
+    private static function getCommunicationMenu(bool $isAdmin): MenuItem
     {
         $commMenu = new MenuItem(gettext('Communication'), '', true, 'fa-comments');
         $commMenu->addSubMenu(new MenuItem(gettext('Text'), 'v2/text/dashboard', true, 'fa-comment-sms'));
+        $commMenu->addSubMenu(new MenuItem(gettext('Announcements'), 'v2/text/announcements', $isAdmin, 'fa-bullhorn'));
 
         return $commMenu;
     }

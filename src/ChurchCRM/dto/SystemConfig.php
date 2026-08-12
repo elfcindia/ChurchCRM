@@ -231,6 +231,13 @@ class   SystemConfig
             'iPersonConfessionDateCustomField'     => new ConfigItem('iPersonConfessionDateCustomField', 'ajax', '', gettext('Field where last Confession is stored, must be a date type'), '', '/api/system/custom-fields/person/?typeId=2'),
             'iDoNotEmailPropertyId'                => new ConfigItem('iDoNotEmailPropertyId', 'ajax', '', gettext('Person property used to exclude members from email lists'), '', '/api/system/properties/person'),
             'iDoNotSmsPropertyId'                  => new ConfigItem('iDoNotSmsPropertyId', 'ajax', '', gettext('Person property used to exclude members from SMS/text lists'), '', '/api/system/properties/person'),
+            'bSendBirthdaySms'                     => new ConfigItem('bSendBirthdaySms', 'boolean', '0', gettext('Automatically text members a birthday greeting on their birthday')),
+            'sBirthdaySmsTemplate'                 => new ConfigItem('sBirthdaySmsTemplate', 'text', gettext('Dear {Name}, wishing you a very Happy Birthday from all of us at {Church}! May God bless you abundantly.'), gettext('Birthday SMS text. {Name} and {Church} are replaced automatically. Must match the wording registered on your DLT template.')),
+            'bSendAnniversarySms'                  => new ConfigItem('bSendAnniversarySms', 'boolean', '0', gettext('Automatically text couples an anniversary greeting on their wedding anniversary')),
+            'sAnniversarySmsTemplate'              => new ConfigItem('sAnniversarySmsTemplate', 'text', gettext('Dear {Name}, Happy Anniversary! Wishing you many more blessed years together. - {Church}'), gettext('Anniversary SMS text. {Name} and {Church} are replaced automatically. Must match the wording registered on your DLT template.')),
+            'sScheduledMessagesToken'               => new ConfigItem('sScheduledMessagesToken', 'password', '', gettext('Bearer token that authorizes the daily cron job to trigger birthday/anniversary texts')),
+            'dLastBirthdaySmsRun'                  => new ConfigItem('dLastBirthdaySmsRun', 'text', '', gettext('Internal: date the birthday SMS job last ran (Y-m-d)')),
+            'dLastAnniversarySmsRun'               => new ConfigItem('dLastAnniversarySmsRun', 'text', '', gettext('Internal: date the anniversary SMS job last ran (Y-m-d)')),
             'bEnforceCSP'                          => new ConfigItem('bEnforceCSP', 'boolean', '0', gettext('Enforce Content Security Policy (CSP) to help protect against cross-site scripting. When disabled, CSP violations are only reported.')),
             'bPHPMailerAutoTLS'                    => new ConfigItem('bPHPMailerAutoTLS', 'boolean', '0', gettext('Automatically enable SMTP encryption if offered by the relaying server.')),
             'sPHPMailerSMTPSecure'                 => new ConfigItem('sPHPMailerSMTPSecure', 'choice', ' ', gettext('Set the encryption system to use - ssl (deprecated) or tls'), '', json_encode(SystemConfig::getSmtpEncryptionChoices(), JSON_THROW_ON_ERROR)),
@@ -267,6 +274,7 @@ class   SystemConfig
             gettext('Quick Search')       => ['bSearchIncludePersons', 'bSearchIncludePersonsMax', 'bSearchIncludeAddresses', 'bSearchIncludeAddressesMax', 'bSearchIncludeFamilies', 'bSearchIncludeFamiliesMax', 'bSearchIncludeFamilyHOH', 'bSearchIncludeFamilyHOHMax', 'bSearchIncludeGroups', 'bSearchIncludeGroupsMax', 'bSearchIncludeDeposits', 'bSearchIncludeDepositsMax', 'bSearchIncludePayments', 'bSearchIncludePaymentsMax', 'bSearchIncludeFamilyCustomProperties', 'bSearchIncludeCalendarEvents', 'bSearchIncludeCalendarEventsMax'],
             gettext('Localization')       => ['sDistanceUnit', 'sPhoneFormat', 'sPhoneFormatWithExt', 'sPhoneFormatCell', 'sDateFormatLong', 'sDateFormatNoYear', 'sDateTimeFormat', 'sDateFilenameFormat', 'sDatePickerFormat', 'sDatePickerPlaceHolder'],
             gettext('Confession')         => ['iPersonConfessionFatherCustomField', 'iPersonConfessionDateCustomField'],
+            gettext('SMS Automations')    => ['bSendBirthdaySms', 'sBirthdaySmsTemplate', 'bSendAnniversarySms', 'sAnniversarySmsTemplate'],
         ];
     }
 
