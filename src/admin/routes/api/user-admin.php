@@ -5,6 +5,7 @@ use ChurchCRM\Emails\users\AccountDeletedEmail;
 use ChurchCRM\Emails\users\ResetPasswordEmail;
 use ChurchCRM\Emails\users\UnlockedEmail;
 use ChurchCRM\model\ChurchCRM\UserConfigQuery;
+use ChurchCRM\Service\UserService;
 use ChurchCRM\Slim\Middleware\Request\Auth\AdminRoleAuthMiddleware;
 use ChurchCRM\Slim\Middleware\Api\UserMiddleware;
 use ChurchCRM\Slim\SlimUtils;
@@ -12,6 +13,51 @@ use ChurchCRM\Utils\LoggerUtils;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
+
+/**
+ * @OA\Post(
+ *     path="/api/user",
+ *     summary="Create a new Person record together with a login account in one step (Admin role required)",
+ *     description="For staff who aren't already in the People database. Creates both the Person and the User account; no email is sent — the temporary password is returned directly for the admin to hand over.",
+ *     tags={"Admin"},
+ *     security={{"ApiKeyAuth":{}}},
+ *     @OA\RequestBody(required=true,
+ *         @OA\JsonContent(
+ *             @OA\Property(property="firstName", type="string"),
+ *             @OA\Property(property="lastName", type="string"),
+ *             @OA\Property(property="email", type="string"),
+ *             @OA\Property(property="cellPhone", type="string")
+ *         )
+ *     ),
+ *     @OA\Response(response=200, description="User created",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="personId", type="integer"),
+ *             @OA\Property(property="userId", type="integer"),
+ *             @OA\Property(property="userName", type="string"),
+ *             @OA\Property(property="password", type="string")
+ *         )
+ *     ),
+ *     @OA\Response(response=400, description="Invalid name"),
+ *     @OA\Response(response=403, description="Admin role required")
+ * )
+ */
+$app->post('/api/user', function (Request $request, Response $response): Response {
+    $body = (array) ($request->getParsedBody() ?? []);
+    $firstName = (string) ($body['firstName'] ?? '');
+    $lastName = (string) ($body['lastName'] ?? '');
+    $email = isset($body['email']) ? (string) $body['email'] : null;
+    $cellPhone = isset($body['cellPhone']) ? (string) $body['cellPhone'] : null;
+
+    try {
+        $result = (new UserService())->createUser($firstName, $lastName, $email, $cellPhone);
+    } catch (\InvalidArgumentException $e) {
+        return SlimUtils::renderErrorJSON($response, $e->getMessage(), [], 400);
+    } catch (\Throwable $e) {
+        return SlimUtils::renderErrorJSON($response, gettext('Could not create user'), [], 500, $e, $request);
+    }
+
+    return SlimUtils::renderJSON($response, $result);
+})->add(AdminRoleAuthMiddleware::class);
 
 $app->group('/api/user/{userId:[0-9]+}', function (RouteCollectorProxy $group): void {
     /**

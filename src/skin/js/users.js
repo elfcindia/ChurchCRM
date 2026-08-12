@@ -90,6 +90,60 @@ function resetUserPassword(userId, userName) {
   });
 }
 
+$(document).ready(function () {
+  var addUserModalEl = document.getElementById("addUserModal");
+  var resultModalEl = document.getElementById("addUserResultModal");
+
+  $("#auSubmit").click(function () {
+    var firstName = $("#auFirst").val().trim();
+    var lastName = $("#auLast").val().trim();
+
+    if (firstName.length < 2 || lastName.length < 2) {
+      window.CRM.notify(i18next.t("First and last name must be at least 2 characters"), {
+        type: "danger",
+      });
+      return;
+    }
+
+    window.CRM.AdminAPIRequest({
+      path: "user",
+      method: "POST",
+      data: JSON.stringify({
+        firstName: firstName,
+        lastName: lastName,
+        email: $("#auEmail").val().trim(),
+        cellPhone: $("#auCell").val().trim(),
+      }),
+    }).done(function (data) {
+      if (addUserModalEl) window.bootstrap.Modal.getOrCreateInstance(addUserModalEl).hide();
+      $("#auResultUserName").val(data.userName);
+      $("#auResultPassword").val(data.password);
+      if (resultModalEl) window.bootstrap.Modal.getOrCreateInstance(resultModalEl).show();
+    });
+  });
+
+  $("#auCopyUserName").click(function () {
+    window.CRM.copyToClipboard($("#auResultUserName").val());
+  });
+
+  $("#auCopyPassword").click(function () {
+    window.CRM.copyToClipboard($("#auResultPassword").val());
+  });
+
+  if (addUserModalEl) {
+    addUserModalEl.addEventListener("hidden.bs.modal", function () {
+      $("#auFirst, #auLast, #auEmail, #auCell").val("");
+    });
+  }
+
+  if (resultModalEl) {
+    resultModalEl.addEventListener("hidden.bs.modal", function () {
+      $("#auResultUserName, #auResultPassword").val("");
+      window.location.reload();
+    });
+  }
+});
+
 function disableUserTwoFactorAuth(userId, userName) {
   bootbox.confirm({
     title: i18next.t("Action Confirmation"),

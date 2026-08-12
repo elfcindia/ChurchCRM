@@ -53,7 +53,7 @@ $app->group('/system', function (RouteCollectorProxy $group): void {
             'sSettingsCollapseId' => 'userSettingsPanel',
             'sPageHeaderButtons' => PageHeader::buttons([
                 ['label' => gettext('Settings'), 'icon' => 'fa-cog', 'collapse' => '#userSettingsPanel'],
-                ['label' => gettext('Add User'), 'url' => '/UserEditor.php', 'icon' => 'fa-user-plus'],
+                ['label' => gettext('Add User'), 'icon' => 'fa-user-plus', 'modal' => '#addUserModal'],
             ]),
         ];
         

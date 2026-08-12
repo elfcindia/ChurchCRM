@@ -187,6 +187,72 @@ $userSettingsConfig = $userService->getUserSettingsConfig();
 </div>
 <!-- /.box -->
 
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalTitle"><?= gettext('Add User') ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label" for="auFirst"><?= gettext('First name') ?></label>
+                    <input type="text" class="form-control" id="auFirst" required minlength="2" autocomplete="given-name">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="auLast"><?= gettext('Last name') ?></label>
+                    <input type="text" class="form-control" id="auLast" required minlength="2" autocomplete="family-name">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="auEmail"><?= gettext('Email (optional)') ?></label>
+                    <input type="email" class="form-control" id="auEmail" autocomplete="email">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="auCell"><?= gettext('Cell phone (optional)') ?></label>
+                    <input type="tel" class="form-control" id="auCell" autocomplete="tel">
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <a href="<?= SystemURLs::getRootPath() ?>/UserEditor.php"><?= gettext('Give an existing member login access instead') ?></a>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= gettext('Cancel') ?></button>
+                    <button type="button" class="btn btn-primary" id="auSubmit"><?= gettext('Create user') ?></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addUserResultModal" tabindex="-1" aria-labelledby="addUserResultModalTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserResultModalTitle"><?= gettext('User created') ?></h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger"><?= gettext("Copy this password now — it won't be shown again.") ?></p>
+                <div class="mb-2">
+                    <label class="form-label"><?= gettext('Login name') ?></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="auResultUserName" readonly>
+                        <button type="button" class="btn btn-outline-secondary" id="auCopyUserName"><i class="ti ti-copy"></i></button>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label"><?= gettext('Temporary password') ?></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="auResultPassword" readonly>
+                        <button type="button" class="btn btn-outline-secondary" id="auCopyPassword"><i class="ti ti-copy"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="auResultDone" data-bs-dismiss="modal"><?= gettext("Done — I've saved it") ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="<?= SystemURLs::assetVersioned('/skin/js/users.js') ?>"></script>
 <script nonce="<?= SystemURLs::getCSPNonce() ?>">
 $(document).ready(function() {

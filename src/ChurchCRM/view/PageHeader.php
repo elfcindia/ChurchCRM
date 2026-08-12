@@ -44,10 +44,12 @@ class PageHeader
      * Build HTML for page header action buttons.
      *
      * Each button: ['label' => ..., 'url' => ..., 'icon' => ...] for link buttons,
-     * or ['label' => ..., 'icon' => ..., 'collapse' => '#targetId'] for settings toggles.
+     * ['label' => ..., 'icon' => ..., 'collapse' => '#targetId'] for settings toggles,
+     * ['label' => ..., 'icon' => ..., 'offcanvas' => '#targetId'] for offcanvas panels,
+     * or ['label' => ..., 'icon' => ..., 'modal' => '#targetId'] for modal dialogs.
      * Buttons are only rendered for admin users unless 'adminOnly' => false is set.
      *
-     * @param array<array{label: string, url?: string, icon?: string, collapse?: string, adminOnly?: bool}> $buttons
+     * @param array<array{label: string, url?: string, icon?: string, collapse?: string, offcanvas?: string, modal?: string, adminOnly?: bool}> $buttons
      * @return string HTML
      */
     public static function buttons(array $buttons): string
@@ -82,6 +84,12 @@ class PageHeader
                 $html .= '<button class="btn btn-sm btn-outline-secondary" type="button"'
                     . ' data-bs-toggle="offcanvas" data-bs-target="' . $target . '"'
                     . ' aria-controls="' . ltrim($target, '#') . '">'
+                    . $icon . $label . '</button>';
+            } elseif (isset($btn['modal'])) {
+                // Modal trigger button
+                $target = $btn['modal'];
+                $html .= '<button class="btn btn-sm btn-outline-secondary" type="button"'
+                    . ' data-bs-toggle="modal" data-bs-target="' . $target . '">'
                     . $icon . $label . '</button>';
             } else {
                 // Link button
