@@ -542,7 +542,11 @@ class Person extends BasePerson implements PhotoInterface
         if ($obj->count() > 0) {
             $groupService = new GroupService();
             foreach ($obj as $group2roleP2g2r) {
-                $groupService->removeUserFromGroup($group2roleP2g2r->getGroupId(), $group2roleP2g2r->getPersonId());
+                // Use the internal (no bManageGroups check) variant: this cleanup
+                // is a consequence of an already-authorized person deletion
+                // (DeleteRecords permission), not a user-initiated "remove from
+                // group" action, so it must not require a separate permission.
+                $groupService->removeUserFromGroupInternal($group2roleP2g2r->getGroupId(), $group2roleP2g2r->getPersonId());
             }
         }
 

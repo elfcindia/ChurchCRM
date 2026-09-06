@@ -296,6 +296,24 @@ class Family extends BaseFamily implements PhotoInterface
     }
 
     /**
+     * A human-readable, unique family identifier derived from the family
+     * name plus its (already-unique, sequential) database ID - e.g. a
+     * family named "Smith" with fam_ID 7 becomes "SMITH-0007". Computed on
+     * the fly rather than stored, so it needs no schema change and works
+     * retroactively for every existing family, including ones created
+     * before this feature existed.
+     */
+    public function getFamilyIdentifier(): string
+    {
+        $namePart = strtoupper((string) preg_replace('/[^A-Za-z]/', '', $this->getName()));
+        if ($namePart === '') {
+            $namePart = 'FAM';
+        }
+
+        return $namePart . '-' . str_pad((string) $this->getId(), 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Return the family's status as text ('Active' or 'Inactive').
      * Presentation (HTML badges) should be handled by the view or client.
      */

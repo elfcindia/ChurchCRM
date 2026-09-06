@@ -563,6 +563,9 @@ require_once __DIR__ . '/Include/Header.php';
     <div class="card clearfix">
         <div class="card-header d-flex align-items-center">
             <h3 class="card-title"><?= gettext('Family Info') ?></h3>
+            <?php if ($iFamilyID > 0 && $family !== null): ?>
+            <span class="badge bg-secondary-lt text-secondary ms-2" title="<?= gettext('Family ID') ?>"><?= InputUtils::escapeHTML($family->getFamilyIdentifier()) ?></span>
+            <?php endif; ?>
         </div>
         <div class="card-body">
             <div class="row">

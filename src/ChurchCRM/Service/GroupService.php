@@ -40,6 +40,19 @@ class GroupService
     public function removeUserFromGroup(int $groupID, int $personID): void
     {
         AuthService::requireUserGroupMembership('bManageGroups');
+        $this->removeUserFromGroupInternal($groupID, $personID);
+    }
+
+    /**
+     * Remove a user from a group without performing the bManageGroups auth check.
+     * Intended for trusted system-triggered cleanup (e.g. Person::preDelete()
+     * cascading a person deletion into their group memberships), where the
+     * caller has already been authorized for the outer operation and a
+     * separate Manage Groups permission check would incorrectly block it.
+     * Reuses the same cleanup behavior as removeUserFromGroup().
+     */
+    public function removeUserFromGroupInternal(int $groupID, int $personID): void
+    {
         $sSQL = 'DELETE FROM person2group2role_p2g2r WHERE p2g2r_per_ID = ' . $personID . ' AND p2g2r_grp_ID = ' . $groupID;
         FunctionsUtils::runQuery($sSQL);
 

@@ -293,6 +293,7 @@ $otherPeople = $family->getOtherPeople();
             <div class="card-header d-flex align-items-center">
                 <h3 class="card-title m-0"><i class="fa-solid fa-people-roof me-1"></i> <?= gettext("Family Members") ?></h3>
                 <span class="badge bg-primary-lt text-primary ms-2"><?= $memberCount ?></span>
+                <span class="badge bg-secondary-lt text-secondary ms-2" title="<?= gettext('Family ID') ?>"><?= InputUtils::escapeHTML($family->getFamilyIdentifier()) ?></span>
             </div>
             <div class="card-body">
                 <?php renderMemberTable($keyPeople, gettext("Key People"), 'fa-crown', 'warning'); ?>
