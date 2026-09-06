@@ -74,6 +74,19 @@ while ($aRow = mysqli_fetch_array($rsSecurityGrp)) {
     $aSecurityType[$lst_OptionID] = $lst_OptionName;
 }
 
+// Ensure the Baptism Date / Baby Dedication / Marital Status fields exist
+// (auto-provisioned via the same mechanism as admin-added custom fields).
+// Must run before the person_custom_master query below so these fields are
+// included in $rsCustomFields and therefore covered by the existing
+// validate/save loops without any bespoke handling.
+$fldBaptismDate = CustomFieldUtils::ensureField('person', 'Baptism Date', 2)['field'];
+$fldBabyDedication = CustomFieldUtils::ensureField('person', 'Baby Dedication', 2)['field'];
+$fldMaritalStatusInfo = CustomFieldUtils::ensureField('person', 'Marital Status', 12, [
+    gettext('Single'), gettext('Married'), gettext('Divorced'), gettext('Widowed'), gettext('Separated'),
+]);
+$fldMaritalStatus = $fldMaritalStatusInfo['field'];
+$fldMaritalStatusSpecial = $fldMaritalStatusInfo['special'];
+
 // Get the list of custom person fields
 $sSQL = 'SELECT person_custom_master.* FROM person_custom_master ORDER BY custom_Order';
 $rsCustomFields = RunQuery($sSQL);
@@ -312,20 +325,22 @@ if (isset($_POST['PersonSubmit']) || isset($_POST['PersonSubmitAndAdd'])) {
         }
     }
 
-    // Validate all the custom fields (when enabled for this form)
+    // Validate all the custom fields. Not gated on $showCustomFieldsCard: the
+    // generic Custom Fields card is hidden during "Add New Person", but the
+    // Baptism Date / Baby Dedication / Marital Status fields are still
+    // rendered (in their own section) and submitted during create, and rely
+    // on this same loop to be validated/collected.
     $aCustomData = [];
-    if ($showCustomFieldsCard) {
-        while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
-            extract($rowCustomField);
+    while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
+        extract($rowCustomField);
 
-            if (AuthenticationManager::getCurrentUser()->isEnabledSecurity($aSecurityType[$custom_FieldSec])) {
-                $currentFieldData = InputUtils::legacyFilterInput($_POST[$custom_Field] ?? '');
+        if (AuthenticationManager::getCurrentUser()->isEnabledSecurity($aSecurityType[$custom_FieldSec])) {
+            $currentFieldData = InputUtils::legacyFilterInput($_POST[$custom_Field] ?? '');
 
-                $bErrorFlag |= !CustomFieldUtils::validate($type_ID, $currentFieldData, $custom_Field, $aCustomErrors);
+            $bErrorFlag |= !CustomFieldUtils::validate($type_ID, $currentFieldData, $custom_Field, $aCustomErrors);
 
-                // assign processed value locally to $aPersonProps so we can use it to generate the form later
-                $aCustomData[$custom_Field] = $currentFieldData;
-            }
+            // assign processed value locally to $aPersonProps so we can use it to generate the form later
+            $aCustomData[$custom_Field] = $currentFieldData;
         }
     }
 
@@ -454,8 +469,9 @@ if (isset($_POST['PersonSubmit']) || isset($_POST['PersonSubmitAndAdd'])) {
         $photo = new Photo('Person', $iPersonID);
         $photo->refresh();
 
-        // Update the custom person fields (when enabled for this form).
-        if ($showCustomFieldsCard && $numCustomFields > 0) {
+        // Update the custom person fields. Not gated on $showCustomFieldsCard -
+        // see the matching comment at the validation loop above.
+        if ($numCustomFields > 0) {
             mysqli_data_seek($rsCustomFields, 0);
             $sSQL = '';
             while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
@@ -745,6 +761,18 @@ require_once __DIR__ . '/Include/Header.php';
                             echo '>' . $lst_OptionName . '&nbsp;';
                         } ?>
                     </select>
+                </div>
+                <div class="mb-3 col-12 col-sm-6 col-md-3">
+                    <label for="<?= $fldMaritalStatus ?>"><?= gettext('Marital Status') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(12, $fldMaritalStatus, array_key_exists($fldMaritalStatus, $aCustomData) ? trim($aCustomData[$fldMaritalStatus]) : '', $fldMaritalStatusSpecial, !isset($_POST['PersonSubmit'])); ?>
+                </div>
+                <div class="mb-3 col-12 col-sm-6 col-md-3">
+                    <label for="<?= $fldBaptismDate ?>"><?= gettext('Baptism Date') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(2, $fldBaptismDate, array_key_exists($fldBaptismDate, $aCustomData) ? trim($aCustomData[$fldBaptismDate]) : '', null, !isset($_POST['PersonSubmit'])); ?>
+                </div>
+                <div class="mb-3 col-12 col-sm-6 col-md-3">
+                    <label for="<?= $fldBabyDedication ?>"><?= gettext('Baby Dedication') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(2, $fldBabyDedication, array_key_exists($fldBabyDedication, $aCustomData) ? trim($aCustomData[$fldBabyDedication]) : '', null, !isset($_POST['PersonSubmit'])); ?>
                 </div>
             </div>
         </div>
@@ -1069,6 +1097,12 @@ require_once __DIR__ . '/Include/Header.php';
                     mysqli_data_seek($rsCustomFields, 0);
                     while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
                         extract($rowCustomField);
+                        // Baptism Date / Baby Dedication / Marital Status are rendered
+                        // explicitly in the Birth & Family card above - skip them here
+                        // so they don't appear twice.
+                        if (in_array($custom_Field, [$fldBaptismDate, $fldBabyDedication, $fldMaritalStatus], true)) {
+                            continue;
+                        }
                         if (AuthenticationManager::getCurrentUser()->isEnabledSecurity($aSecurityType[$custom_FieldSec])) {
                             echo '<div class="row"><div class="mb-3 col-12 col-md-6"><label for="' . $custom_Field . '">' . $custom_Name . '</label>';
 

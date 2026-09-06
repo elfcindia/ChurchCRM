@@ -3,6 +3,7 @@
 namespace ChurchCRM\Utils;
 
 use ChurchCRM\dto\SystemConfig;
+use ChurchCRM\model\ChurchCRM\ListOption;
 use ChurchCRM\model\ChurchCRM\ListOptionQuery;
 use ChurchCRM\model\ChurchCRM\Person2group2roleP2g2rQuery;
 use ChurchCRM\model\ChurchCRM\PersonQuery;
@@ -34,6 +35,91 @@ class CustomFieldUtils
             11 => gettext('Phone Number'),
             12 => gettext('Custom Drop-Down List'),
         ];
+    }
+
+    /**
+     * Ensure a named custom field exists on `person_custom` or `family_custom`,
+     * creating it on first use if missing (master row + ALTER TABLE ADD COLUMN,
+     * and a new list_lst for type 12 fields, seeded with $listOptions). Mirrors
+     * the exact provisioning logic PersonCustomFieldsEditor.php/
+     * FamilyCustomFieldsEditor.php use for their "Add Field" action, so fields
+     * created this way are indistinguishable from ones an admin added by hand.
+     *
+     * Idempotent - safe to call on every page load. Field lookup is by name,
+     * so calling this again with the same $fieldName just returns the
+     * existing column without altering anything.
+     *
+     * @param 'person'|'family' $entity
+     * @param string[] $listOptions option names to seed; only used when $typeId === 12
+     * @return array{field: string, special: ?string} the `person_custom`/`family_custom`
+     *         column name (e.g. "c1") and, for type 12 fields, the list_lst ID
+     *         backing its dropdown options (CustomFieldUtils::renderForm()'s $special arg)
+     */
+    public static function ensureField(string $entity, string $fieldName, int $typeId, array $listOptions = []): array
+    {
+        $isPerson = $entity === 'person';
+        $customTable = $isPerson ? 'person_custom' : 'family_custom';
+        $masterTable = $isPerson ? 'person_custom_master' : 'family_custom_master';
+        $orderCol = $isPerson ? 'custom_Order' : 'fam_custom_Order';
+        $fieldCol = $isPerson ? 'custom_Field' : 'fam_custom_Field';
+        $nameCol = $isPerson ? 'custom_Name' : 'fam_custom_Name';
+        $specialCol = $isPerson ? 'custom_Special' : 'fam_custom_Special';
+        $secCol = $isPerson ? 'custom_FieldSec' : 'fam_custom_FieldSec';
+
+        $existing = FunctionsUtils::runQuery("SELECT `$fieldCol`, `$specialCol` FROM `$masterTable` WHERE `$nameCol` = '" . InputUtils::sanitizeText($fieldName) . "'");
+        if ($row = mysqli_fetch_array($existing)) {
+            return ['field' => (string) $row[0], 'special' => $row[1] !== null ? (string) $row[1] : null];
+        }
+
+        // Find the highest existing field number in the data table to
+        // determine the next free one (same approach as the Add Field UI).
+        $fields = FunctionsUtils::runQuery("SELECT * FROM `$customTable`");
+        $last = mysqli_num_fields($fields) - 1;
+        $fieldInfo = mysqli_fetch_field_direct($fields, $last);
+        $newFieldNum = (int) mb_substr($fieldInfo->name, 1) + 1;
+        $newFieldCol = 'c' . $newFieldNum;
+
+        $newSpecial = 'NULL';
+        if ($typeId === 12 && !empty($listOptions)) {
+            $maxListResult = FunctionsUtils::runQuery('SELECT MAX(lst_ID) FROM list_lst');
+            $maxListRow = mysqli_fetch_array($maxListResult);
+            $newListId = $maxListRow[0] > 9 ? ((int) $maxListRow[0] + 1) : 10;
+
+            $sequence = 1;
+            foreach ($listOptions as $optionName) {
+                $listOption = new ListOption();
+                $listOption
+                    ->setId($newListId)
+                    ->setOptionId($sequence)
+                    ->setOptionSequence($sequence)
+                    ->setOptionName($optionName);
+                $listOption->save();
+                $sequence++;
+            }
+
+            $newSpecial = (string) $newListId;
+        }
+
+        $orderCountResult = FunctionsUtils::runQuery("SELECT COUNT(*) FROM `$masterTable`");
+        $orderCountRow = mysqli_fetch_array($orderCountResult);
+        $newOrder = (int) $orderCountRow[0] + 1;
+
+        $specialSql = $newSpecial === 'NULL' ? 'NULL' : "'" . $newSpecial . "'";
+        FunctionsUtils::runQuery(
+            "INSERT INTO `$masterTable` (`$orderCol`, `$fieldCol`, `$nameCol`, `$specialCol`, `$secCol`, `type_ID`) " .
+            "VALUES ('" . $newOrder . "', '" . $newFieldCol . "', '" . InputUtils::sanitizeText($fieldName) . "', " . $specialSql . ", '1', '" . $typeId . "')"
+        );
+
+        $sqlType = match ($typeId) {
+            2 => 'DATE',
+            3 => 'VARCHAR(50)',
+            4 => 'VARCHAR(100)',
+            12 => 'TINYINT(4)',
+            default => 'VARCHAR(100)',
+        };
+        FunctionsUtils::runQuery("ALTER TABLE `$customTable` ADD `$newFieldCol` $sqlType DEFAULT NULL");
+
+        return ['field' => $newFieldCol, 'special' => $newSpecial === 'NULL' ? null : $newSpecial];
     }
 
     /**

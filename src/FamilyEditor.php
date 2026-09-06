@@ -49,6 +49,28 @@ if ($iFamilyID > 0) {
     RedirectUtils::securityRedirect('AddRecords');
 }
 
+// Ensure the Baptism Date / Baby Dedication / House Visiting Preferred
+// Day+Time / Area Name fields exist (auto-provisioned via the same
+// mechanism as admin-added custom fields). Must run before the
+// family_custom_master query below so these fields are included in
+// $rsCustomFields and therefore covered by the existing validate/save loop.
+$fldFamBaptismDate = CustomFieldUtils::ensureField('family', 'Baptism Date', 2)['field'];
+$fldFamBabyDedication = CustomFieldUtils::ensureField('family', 'Baby Dedication', 2)['field'];
+$fldVisitDayInfo = CustomFieldUtils::ensureField('family', 'House Visiting Preferred Day', 12, [
+    gettext('Sunday'), gettext('Monday'), gettext('Tuesday'), gettext('Wednesday'),
+    gettext('Thursday'), gettext('Friday'), gettext('Saturday'),
+]);
+$fldVisitDay = $fldVisitDayInfo['field'];
+$fldVisitDaySpecial = $fldVisitDayInfo['special'];
+$fldVisitTime = CustomFieldUtils::ensureField('family', 'House Visiting Preferred Time', 3)['field'];
+$fldAreaNameInfo = CustomFieldUtils::ensureField('family', 'Area Name', 12, [
+    'COX TOWN', 'INDIRANAGAR', 'HAL', 'MARATHAHALLI', 'VARTHUR', 'CHELKERE', 'HRBR LAYOUT',
+    'HEBBAL', 'HEDGENAGAR', 'NARAYANPURA', 'KANNUR', 'KOTHANUR', 'HENNUR', 'GEDALAHALLI',
+    'KASTURI NAGAR', 'RAMAMURTHY NAGAR', 'BABUSAHBPALYA', 'LINGARAJPURAM', 'KACHARAKANAHALLI',
+]);
+$fldAreaName = $fldAreaNameInfo['field'];
+$fldAreaNameSpecial = $fldAreaNameInfo['special'];
+
 // Get the list of custom person fields
 $sSQL = 'SELECT family_custom_master.* FROM family_custom_master ORDER BY fam_custom_Order';
 $rsCustomFields = RunQuery($sSQL);
@@ -595,6 +617,16 @@ require_once __DIR__ . '/Include/Header.php';
                 </div>
                 <?php } /* Wedding date can be hidden - General Settings */ ?>
             </div>
+            <div class="row">
+                <div class="mb-3 col-12 col-sm-6 col-md-4">
+                    <label for="<?= $fldFamBaptismDate ?>"><?= gettext('Baptism Date') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(2, $fldFamBaptismDate, array_key_exists($fldFamBaptismDate, $aCustomData) ? trim($aCustomData[$fldFamBaptismDate]) : '', null, !isset($_POST['FamilySubmit'])); ?>
+                </div>
+                <div class="mb-3 col-12 col-sm-6 col-md-4">
+                    <label for="<?= $fldFamBabyDedication ?>"><?= gettext('Baby Dedication') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(2, $fldFamBabyDedication, array_key_exists($fldFamBabyDedication, $aCustomData) ? trim($aCustomData[$fldFamBabyDedication]) : '', null, !isset($_POST['FamilySubmit'])); ?>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -655,6 +687,20 @@ require_once __DIR__ . '/Include/Header.php';
                     <label for="Country"><?= gettext('Country') ?>:</label>
                     <select id="Country" name="Country" class="form-select" data-user-selected="<?= InputUtils::escapeAttribute($sCountry) ?>" data-system-default="<?= SystemConfig::getValueForAttr('sDefaultCountry') ?>">
                     </select>
+                </div>
+                <div class="mb-3 col-12 col-sm-6 col-md-4">
+                    <label for="<?= $fldAreaName ?>"><?= gettext('Area Name') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(12, $fldAreaName, array_key_exists($fldAreaName, $aCustomData) ? trim($aCustomData[$fldAreaName]) : '', $fldAreaNameSpecial, !isset($_POST['FamilySubmit'])); ?>
+                </div>
+            </div>
+            <div class="row">
+                <div class="mb-3 col-12 col-sm-6">
+                    <label for="<?= $fldVisitDay ?>"><?= gettext('House Visiting Preferred Day') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(12, $fldVisitDay, array_key_exists($fldVisitDay, $aCustomData) ? trim($aCustomData[$fldVisitDay]) : '', $fldVisitDaySpecial, !isset($_POST['FamilySubmit'])); ?>
+                </div>
+                <div class="mb-3 col-12 col-sm-6">
+                    <label for="<?= $fldVisitTime ?>"><?= gettext('House Visiting Preferred Time') ?>:</label>
+                    <?php CustomFieldUtils::renderForm(3, $fldVisitTime, array_key_exists($fldVisitTime, $aCustomData) ? trim($aCustomData[$fldVisitTime]) : '', null, !isset($_POST['FamilySubmit'])); ?>
                 </div>
             </div>
             <?php if (!SystemConfig::getBooleanValue('bHideLatLon')) { /* Lat/Lon can be hidden - General Settings */
@@ -748,9 +794,16 @@ require_once __DIR__ . '/Include/Header.php';
             <div class="card-body">
                 <?php 
                 $customPhoneFields = [];
+                $familyExplicitFields = [$fldFamBaptismDate, $fldFamBabyDedication, $fldVisitDay, $fldVisitTime, $fldAreaName];
                 mysqli_data_seek($rsCustomFields, 0);
                 while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
                     extract($rowCustomField);
+                    // Baptism Date / Baby Dedication / House Visiting Day+Time /
+                    // Area Name are rendered explicitly elsewhere in this form -
+                    // skip them here so they don't appear twice.
+                    if (in_array($fam_custom_Field, $familyExplicitFields, true)) {
+                        continue;
+                    }
                     if (AuthenticationManager::getCurrentUser()->isEnabledSecurity($aSecurityType[$fam_custom_FieldSec])) {
                         ?>
                         <div class="row">
