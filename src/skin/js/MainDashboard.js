@@ -412,6 +412,5 @@ export function initializeMainDashboard() {
     $("#todayEventsDashboardItem").DataTable(todayEventsConfig);
   }
 
-
   // CartManager handles all cart button clicks generically via data-cart-id and data-cart-type attributes
 }
