@@ -39,6 +39,25 @@ export function buildAdminAPIUrl(path: string): string {
 }
 
 /**
+ * Extract a human-readable error message from a failed API response, if the
+ * body carries one. Backend errors come back as either `{message: "..."}`
+ * (SlimUtils::renderErrorJSON) or `{error: "..."}` (auth middleware), so both
+ * are checked. Falls back to the HTTP status line when the body has neither.
+ */
+async function describeErrorResponse(response: Response, prefix: string): Promise<string> {
+  try {
+    const body = await response.clone().json();
+    const detail = body?.message || body?.error;
+    if (detail) {
+      return `${detail}`;
+    }
+  } catch {
+    // Body wasn't JSON (or was empty) - fall through to the generic message.
+  }
+  return `${prefix}: ${response.status} ${response.statusText}`;
+}
+
+/**
  * Fetch wrapper for API calls with automatic error logging
  *
  * @param path - The API path (relative to /api/, e.g., 'person/123/avatar')
@@ -59,7 +78,7 @@ export async function fetchAPI(path: string, options: RequestInit = {}): Promise
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(await describeErrorResponse(response, "API request failed"));
     }
 
     return response;
@@ -89,7 +108,7 @@ export async function fetchAdminAPI(path: string, options: RequestInit = {}): Pr
     });
 
     if (!response.ok) {
-      throw new Error(`Admin API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(await describeErrorResponse(response, "Admin API request failed"));
     }
 
     return response;

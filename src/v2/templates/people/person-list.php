@@ -153,58 +153,58 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
 
 <div class="card mb-3">
     <div class="card-header">
-        <h3 class="card-title"><i class="ti ti-filter me-1"></i> <span id="filters-title"></span></h3>
+        <h3 class="card-title"><i class="ti ti-filter me-1"></i> <span id="filters-title"><?= gettext('Filters') ?></span></h3>
     </div>
     <div class="card-body">
         <div class="row g-3">
             <!-- Demographics and Classification Row -->
             <div class="col-12 col-sm-6 col-lg-3">
                 <div class="mb-0">
-                    <label class="form-label" id="label-family-status"></label>
+                    <label class="form-label" id="label-family-status"><?= gettext('Family Status') ?></label>
                     <select class="form-select filter-FamilyStatus" multiple="multiple"></select>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-3">
                 <div class="mb-0">
-                    <label class="form-label" id="label-gender"></label>
+                    <label class="form-label" id="label-gender"><?= gettext('Gender') ?></label>
                     <select class="form-select filter-Gender" multiple="multiple"></select>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-3">
                 <div class="mb-0">
-                    <label class="form-label" id="label-classification"></label>
+                    <label class="form-label" id="label-classification"><?= gettext('Classification') ?></label>
                     <select class="form-select filter-Classification" multiple="multiple"></select>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-3">
                 <div class="mb-0">
-                    <label class="form-label" id="label-role"></label>
+                    <label class="form-label" id="label-role"><?= gettext('Role') ?></label>
                     <select class="form-select filter-Role" multiple="multiple"></select>
                 </div>
             </div>
             <!-- Extended Attributes Row -->
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="mb-0">
-                    <label class="form-label" id="label-properties"></label>
+                    <label class="form-label" id="label-properties"><?= gettext('Properties') ?></label>
                     <select class="form-select filter-Properties" multiple="multiple"></select>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="mb-0">
-                    <label class="form-label" id="label-custom"></label>
+                    <label class="form-label" id="label-custom"><?= gettext('Custom') ?></label>
                     <select class="form-select filter-Custom" multiple="multiple"></select>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="mb-0">
-                    <label class="form-label" id="label-group"></label>
+                    <label class="form-label" id="label-group"><?= gettext('Group') ?></label>
                     <select class="form-select filter-Group" multiple="multiple"></select>
                 </div>
             </div>
         </div>
         <div class="mt-3">
             <button id="ClearFilter" type="button" class="btn btn-secondary w-100">
-                <i class="ti ti-x me-1"></i> <span id="clear-filter-text"></span>
+                <i class="ti ti-x me-1"></i> <span id="clear-filter-text"><?= gettext('Clear Filter') ?></span>
             </button>
         </div>
     </div>
@@ -212,7 +212,7 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
 
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title"><i class="ti ti-users me-1"></i> <span id="people-title"></span></h3>
+        <h3 class="card-title"><i class="ti ti-users me-1"></i> <span id="people-title"><?= gettext('People') ?></span></h3>
     </div>
     <div class="card-body">
         <table id="members" class="table table-vcenter table-hover data-table mb-0">
@@ -309,14 +309,14 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
                         // Make email clickable with mailto link
                         elseif ($column->displayFunction === 'getEmail') {
                             if (!empty($columnData)) {
-                                echo '<a href="mailto:' . InputUtils::escapeAttribute($columnData) . '" target="_blank" rel="noopener noreferrer">' . InputUtils::escapeHTML($columnData) . '</a>';
+                                echo '<a class="cell-truncate" href="mailto:' . InputUtils::escapeAttribute($columnData) . '" target="_blank" rel="noopener noreferrer" title="' . InputUtils::escapeAttribute($columnData) . '">' . InputUtils::escapeHTML($columnData) . '</a>';
                             } else {
                                 echo '<span class="text-muted">—</span>';
                             }
                         }
                         // Make person name clickable and add gender icon, role, and photo icon
                         elseif (in_array($column->displayFunction, ['getFullName', 'getFirstName', 'getLastName'], true)) {
-                            echo '<a href="' . SystemURLs::getRootPath() . '/PersonView.php?PersonID=' . $person->getId() . '" class="fw-bold">' . InputUtils::escapeHTML($columnData) . '</a>';
+                            echo '<a href="' . SystemURLs::getRootPath() . '/PersonView.php?PersonID=' . $person->getId() . '" class="fw-bold cell-truncate" title="' . InputUtils::escapeAttribute($columnData) . '">' . InputUtils::escapeHTML($columnData) . '</a>';
                             // Add role in parentheses
                             $role = $person->getFamilyRoleName();
                             if (!empty($role) && $role !== 'Unassigned') {
@@ -339,9 +339,15 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
                         // Format groups nicely as badges - include hidden JSON for filtering
                         elseif ($column->displayFunction === 'getGroups') {
                             if (is_array($columnData) && !empty($columnData)) {
-                                // Always render badges for display
-                                foreach ($columnData as $group) {
+                                // Cap visible badges so a person in many groups doesn't blow out the row
+                                $visibleGroups = array_slice($columnData, 0, 2);
+                                $remainingCount = count($columnData) - count($visibleGroups);
+                                foreach ($visibleGroups as $group) {
                                     echo '<span class="badge bg-info me-1">' . InputUtils::escapeHTML($group) . '</span>';
+                                }
+                                if ($remainingCount > 0) {
+                                    $remainingGroups = array_slice($columnData, 2);
+                                    echo '<span class="badge bg-secondary-lt text-secondary" title="' . InputUtils::escapeAttribute(implode(', ', $remainingGroups)) . '">+' . $remainingCount . ' ' . gettext('more') . '</span>';
                                 }
                                 // Add hidden span with JSON for DataTables filtering
                                 echo '<span style="display:none;">' . InputUtils::escapeHTML(json_encode($columnData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) . '</span>';
@@ -394,6 +400,10 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
                             } else {
                                 echo emptyOrUnassigned($columnData);
                             }
+                        }
+                        // Birth Date / Address: show a placeholder instead of a blank cell when empty
+                        elseif (in_array($column->displayFunction, ['getFormattedBirthDate', 'getAddress'], true)) {
+                            echo $columnData ? InputUtils::escapeHTML($columnData) : '<span class="text-muted">—</span>';
                         } else {
                             echo $columnData;
                         }
@@ -557,13 +567,13 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
         // Store TomSelect instances and filter configuration for later use
         var tomSelectInstances = {};
         var filterConfigs = [
-            { sel: '.filter-Gender', colName: 'Gender', regex: true },
-            { sel: '.filter-Classification', colName: 'Classification', regex: true },
-            { sel: '.filter-Role', colName: 'Role', regex: true },
-            { sel: '.filter-Properties', colName: 'Properties', regex: false },
-            { sel: '.filter-Custom', colName: 'Custom', regex: false },
-            { sel: '.filter-FamilyStatus', colName: 'Family Status', regex: true },
-            { sel: '.filter-Group', colName: 'Group', regex: false }
+            { sel: '.filter-Gender', colName: 'Gender', regex: true, placeholder: 'All Genders' },
+            { sel: '.filter-Classification', colName: 'Classification', regex: true, placeholder: 'All Classifications' },
+            { sel: '.filter-Role', colName: 'Role', regex: true, placeholder: 'All Roles' },
+            { sel: '.filter-Properties', colName: 'Properties', regex: false, placeholder: 'All Properties' },
+            { sel: '.filter-Custom', colName: 'Custom', regex: false, placeholder: 'All Custom Fields' },
+            { sel: '.filter-FamilyStatus', colName: 'Family Status', regex: true, placeholder: 'All Statuses' },
+            { sel: '.filter-Group', colName: 'Group', regex: false, placeholder: 'All Groups' }
         ];
 
         // Function to initialize TomSelect instances (will be called after options are populated)
@@ -573,7 +583,8 @@ $hasDataQualityIssues = $genderDataCheckCount > 0 || $roleDataCheckCount > 0 ||
                     if (!this.tomselect) {
                         var ts = new TomSelect(this, {
                             plugins: ['remove_button', 'input_autogrow'],
-                            hideSelected: true
+                            hideSelected: true,
+                            placeholder: i18next.t(cfg.placeholder)
                         });
                         tomSelectInstances[cfg.colName] = { ts: ts, el: this, regex: cfg.regex };
                     }

@@ -83,8 +83,8 @@ async function runSearch(q: string): Promise<void> {
       });
       box.appendChild(item);
     }
-  } catch {
-    notify(t("Search failed"), "danger");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : t("Search failed"), "danger");
   }
 }
 

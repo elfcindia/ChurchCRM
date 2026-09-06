@@ -16,10 +16,39 @@ require SystemURLs::getDocumentRoot() . '/Include/Header.php';
     </div>
 </div>
 
-<!-- Full-width calendar -->
-<div class="card">
-    <div class="card-body p-0">
-        <div id="calendar"></div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Birthdays & Anniversaries — sidebar (1/3 width), same widget as the main dashboard -->
+    <div class="col-lg-4">
+        <div class="card mb-3" id="birthdayCard">
+            <div class="card-header d-flex align-items-center">
+                <h3 class="card-title"><i class="fa-solid fa-cake-candles me-2"></i><?= gettext('Birthdays') ?></h3>
+            </div>
+            <div class="card-body p-0">
+                <p class="text-muted small px-3 pt-3 mb-2"><?= gettext('Past & next 7 days') ?></p>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" width="100%" id="PersonBirthdayDashboardItem"></table>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-3" id="anniversaryCard">
+            <div class="card-header d-flex align-items-center">
+                <h3 class="card-title"><i class="fa-solid fa-heart me-2"></i><?= gettext('Anniversaries') ?></h3>
+            </div>
+            <div class="card-body p-0">
+                <p class="text-muted small px-3 pt-3 mb-2"><?= gettext('Past & next 7 days') ?></p>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" width="100%" id="FamiliesWithAnniversariesDashboardItem"></table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -5,6 +5,7 @@ use ChurchCRM\dto\SystemConfig;
 use ChurchCRM\dto\SystemURLs;
 use ChurchCRM\model\ChurchCRM\ListOptionQuery;
 use ChurchCRM\model\ChurchCRM\PersonQuery;
+use ChurchCRM\Service\PersonService;
 use ChurchCRM\Utils\InputUtils;
 use ChurchCRM\Utils\LoggerUtils;
 use ChurchCRM\view\PageHeader;
@@ -143,6 +144,12 @@ function listPeople(Request $request, Response $response, array $args): Response
 
     // Family status is computed on-demand in templates via Family::isActive()
 
+    // Data quality checks for people (same checks/service as the main dashboard)
+    $personService = new PersonService();
+    $genderDataCheckCount = $personService->getMissingGenderDataCount();
+    $roleDataCheckCount = $personService->getMissingRoleDataCount();
+    $classificationDataCheckCount = $personService->getMissingClassificationDataCount();
+
     $pageArgs = [
         'sMode'                           => $sMode,
         'sRootPath'                       => SystemURLs::getRootPath(),
@@ -160,6 +167,9 @@ function listPeople(Request $request, Response $response, array $args): Response
         'filterByGender'                  => $filterByGender,
         'familyActiveStatus'              => $familyActiveStatus,
         // no precomputed familyStatusMap: templates will call Family::isActive()
+        'genderDataCheckCount'            => $genderDataCheckCount,
+        'roleDataCheckCount'              => $roleDataCheckCount,
+        'classificationDataCheckCount'    => $classificationDataCheckCount,
     ];
 
     return $renderer->render($response, 'person-list.php', $pageArgs);

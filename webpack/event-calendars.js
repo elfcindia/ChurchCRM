@@ -1,3 +1,5 @@
+import { initializeBirthdayAnniversaryWidgets } from "../src/skin/js/BirthdayAnniversaryWidgets";
+
 window.moveEventModal = {
   getButtons: (confirmLabel, confirmClass) => ({
     cancel: {
@@ -744,6 +746,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeNewCalendarButton();
     registerCalendarSelectionEvents();
     displayAccessTokenAPITest();
+    initializeBirthdayAnniversaryWidgets();
 
     window.CRM.fullcalendar.render();
   });

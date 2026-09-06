@@ -2,11 +2,14 @@
 
 namespace ChurchCRM\Service;
 
+use ChurchCRM\model\ChurchCRM\GroupPropMaster;
+use ChurchCRM\model\ChurchCRM\GroupPropMasterQuery;
 use ChurchCRM\model\ChurchCRM\GroupQuery;
 use ChurchCRM\model\ChurchCRM\ListOptionQuery;
 use ChurchCRM\model\ChurchCRM\Person;
 use ChurchCRM\model\ChurchCRM\Person2group2roleP2g2rQuery;
 use ChurchCRM\model\ChurchCRM\PersonQuery;
+use ChurchCRM\Utils\FunctionsUtils;
 use Propel\Runtime\ActiveQuery\Criteria;
 
 class SundaySchoolService
@@ -330,6 +333,104 @@ class SundaySchoolService
     }
 
     /**
+     * Find the `groupprop_{groupId}` column name backing the per-student
+     * "Teacher Assigned" field for this class, if one has already been
+     * created (via ensureTeacherAssignedField()). Returns null if no
+     * teacher has ever been assigned in this class yet — callers should
+     * treat that as "no assignments", not provision anything on a read path.
+     */
+    private function getTeacherAssignedField(int $groupId): ?string
+    {
+        $existing = GroupPropMasterQuery::create()
+            ->filterByGrpId($groupId)
+            ->filterByName('Teacher Assigned')
+            ->findOne();
+
+        return $existing?->getField();
+    }
+
+    /**
+     * Ensure this Sunday School class has a "Teacher Assigned" group-specific
+     * property (type 9 / "Person from Group", scoped to this same class so the
+     * picker offers this class's own members), creating it on first use.
+     * Reuses the same group-specific-properties mechanism as GroupPropsFormEditor.php
+     * rather than adding a new DB column/Propel model.
+     *
+     * @return string the `groupprop_{groupId}` column name (e.g. "c1")
+     */
+    public function ensureTeacherAssignedField(int $groupId): string
+    {
+        $existingField = $this->getTeacherAssignedField($groupId);
+        if ($existingField !== null) {
+            return $existingField;
+        }
+
+        $group = GroupQuery::create()->filterByType(4)->findPk($groupId);
+        if ($group === null) {
+            throw new \Exception('Sunday School class not found');
+        }
+
+        if (!$group->getHasSpecialProps()) {
+            (new GroupService())->enableGroupSpecificProperties((string) $groupId);
+        }
+
+        $newRowNum = GroupPropMasterQuery::create()->filterByGrpId($groupId)->count() + 1;
+
+        // Field numbers follow the actual column count of groupprop_{groupId}
+        // (per_ID plus however many custom fields already exist), matching
+        // GroupPropsFormEditor.php's field-numbering so deleted fields' numbers
+        // are never reused.
+        $fields = FunctionsUtils::runQuery('SELECT * FROM `groupprop_' . $groupId . '`');
+        $fieldName = 'c' . mysqli_num_fields($fields);
+
+        $groupPropMaster = new GroupPropMaster();
+        $groupPropMaster
+            ->setGrpId($groupId)
+            ->setPropId($newRowNum)
+            ->setField($fieldName)
+            ->setName('Teacher Assigned')
+            ->setDescription(gettext('Teacher assigned to this student'))
+            ->setTypeId(9)
+            ->setSpecial($groupId);
+        $groupPropMaster->save();
+
+        FunctionsUtils::runQuery('ALTER TABLE `groupprop_' . $groupId . '` ADD `' . $fieldName . '` MEDIUMINT(9) DEFAULT NULL');
+
+        return $fieldName;
+    }
+
+    /**
+     * Set (or clear, when $teacherPersonId is null) the teacher assigned to a
+     * specific student within a specific class.
+     */
+    public function setStudentTeacher(int $groupId, int $studentPersonId, ?int $teacherPersonId): void
+    {
+        $fieldName = $this->ensureTeacherAssignedField($groupId);
+        $value = $teacherPersonId !== null && $teacherPersonId > 0 ? (string) $teacherPersonId : 'NULL';
+        FunctionsUtils::runQuery('UPDATE `groupprop_' . $groupId . '` SET `' . $fieldName . '` = ' . $value . ' WHERE per_ID = ' . $studentPersonId);
+    }
+
+    /**
+     * @return array<int, int> studentPersonId => teacherPersonId, for students
+     *                          in this class who currently have a teacher assigned
+     */
+    public function getTeacherAssignments(int $groupId): array
+    {
+        $fieldName = $this->getTeacherAssignedField($groupId);
+        if ($fieldName === null) {
+            return [];
+        }
+
+        $result = FunctionsUtils::runQuery('SELECT per_ID, `' . $fieldName . '` AS teacher_id FROM `groupprop_' . $groupId . '` WHERE `' . $fieldName . '` IS NOT NULL');
+        $map = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $map[(int) $row['per_ID']] = (int) $row['teacher_id'];
+        }
+
+        return $map;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function getKidsFullDetails(string $groupId): array
@@ -357,6 +458,14 @@ class SundaySchoolService
             ->addAscendingOrderByColumn('per_LastName')
             ->addAscendingOrderByColumn('per_FirstName')
             ->findByGroupId((int) $groupId);
+
+        $teacherAssignments = $this->getTeacherAssignments((int) $groupId);
+        $teacherNames = [];
+        if (!empty($teacherAssignments)) {
+            foreach (PersonQuery::create()->filterById(array_unique(array_values($teacherAssignments)), Criteria::IN)->find() as $teacher) {
+                $teacherNames[$teacher->getId()] = $teacher->getFullName();
+            }
+        }
 
         $kids = [];
         foreach ($memberships as $membership) {
@@ -403,6 +512,8 @@ class SundaySchoolService
                 'city'        => $fam?->getCity(),
                 'state'       => $fam?->getState(),
                 'zip'         => $fam?->getZip(),
+                'teacherId'   => $teacherAssignments[$kid->getId()] ?? null,
+                'teacherName' => isset($teacherAssignments[$kid->getId()]) ? ($teacherNames[$teacherAssignments[$kid->getId()]] ?? null) : null,
             ];
         }
 

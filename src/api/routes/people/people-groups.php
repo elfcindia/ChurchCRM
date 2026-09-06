@@ -3,14 +3,19 @@
 use ChurchCRM\Authentication\AuthenticationManager;
 use ChurchCRM\dto\SystemConfig;
 use ChurchCRM\model\ChurchCRM\Base\ListOptionQuery;
+use ChurchCRM\model\ChurchCRM\Family;
+use ChurchCRM\model\ChurchCRM\FamilyCustom;
 use ChurchCRM\model\ChurchCRM\FamilyQuery;
 use ChurchCRM\model\ChurchCRM\Group;
 use ChurchCRM\model\ChurchCRM\GroupQuery;
 use ChurchCRM\model\ChurchCRM\Map\PersonTableMap;
 use ChurchCRM\model\ChurchCRM\Note;
+use ChurchCRM\model\ChurchCRM\Person;
 use ChurchCRM\model\ChurchCRM\Person2group2roleP2g2rQuery;
+use ChurchCRM\model\ChurchCRM\PersonCustom;
 use ChurchCRM\model\ChurchCRM\RecordPropertyQuery;
 use Propel\Runtime\ActiveQuery\Criteria;
+use Propel\Runtime\Propel;
 use ChurchCRM\Service\GroupService;
 use ChurchCRM\Service\PersonService;
 use ChurchCRM\Service\SundaySchoolService;
@@ -21,6 +26,7 @@ use ChurchCRM\Slim\Middleware\Request\Auth\ManageGroupRoleAuthMiddleware;
 use ChurchCRM\Slim\Middleware\Request\Setting\SundaySchoolEnabledMiddleware;
 use ChurchCRM\Slim\SlimUtils;
 use ChurchCRM\Utils\CsvExporter;
+use ChurchCRM\Utils\InputUtils;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
@@ -916,6 +922,178 @@ $app->group('/groups', function (RouteCollectorProxy $group): void {
             ->findByGroupId($groupID);
         return SlimUtils::renderJSON($response, $members->toArray());
     })->add(new PersonMiddleware('userID'))->add(GroupMiddleware::class);
+
+    /**
+     * @OA\Post(
+     *     path="/groups/{groupID}/add-student",
+     *     summary="Create a new Person (optionally a new Family) and enroll them as a Student in a Sunday School class, in one call (ManageGroupRole role required)",
+     *     tags={"Groups"},
+     *     security={{"ApiKeyAuth":{}}},
+     *     @OA\Parameter(name="groupID", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="firstName", type="string"),
+     *             @OA\Property(property="lastName", type="string"),
+     *             @OA\Property(property="gender", type="integer", description="0=Unassigned, 1=Male, 2=Female"),
+     *             @OA\Property(property="birthMonth", type="integer"),
+     *             @OA\Property(property="birthDay", type="integer"),
+     *             @OA\Property(property="birthYear", type="integer"),
+     *             @OA\Property(property="familyId", type="integer", description="Existing family ID, or -1 to create a new family using the last name"),
+     *             @OA\Property(property="newFamilyName", type="string", description="Optional override for the new family's name when familyId=-1"),
+     *             @OA\Property(property="teacherId", type="integer", description="Optional: person ID of the teacher to assign to this student")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Created personId/familyId"),
+     *     @OA\Response(response=400, description="Invalid input"),
+     *     @OA\Response(response=403, description="ManageGroupRole role required")
+     * )
+     */
+    $group->post('/{groupID:[0-9]+}/add-student', function (Request $request, Response $response, array $args): Response {
+        $group = $request->getAttribute('group');
+        $groupID = (int) $args['groupID'];
+        $input = $request->getParsedBody() ?? [];
+
+        if ($group->getType() !== 4) {
+            return SlimUtils::renderErrorJSON($response, gettext('This is not a Sunday School class'), [], 400);
+        }
+
+        $firstName = InputUtils::sanitizeAndEscapeText((string) ($input['firstName'] ?? ''));
+        $lastName = InputUtils::sanitizeAndEscapeText((string) ($input['lastName'] ?? ''));
+
+        if (mb_strlen($firstName) < 2 || mb_strlen($lastName) < 2) {
+            return SlimUtils::renderErrorJSON($response, gettext('First and last name must be at least 2 characters'), [], 400);
+        }
+
+        $gender = InputUtils::filterInt((string) ($input['gender'] ?? '0'));
+        $birthMonth = !empty($input['birthMonth']) ? InputUtils::filterInt((string) $input['birthMonth']) : null;
+        $birthDay = !empty($input['birthDay']) ? InputUtils::filterInt((string) $input['birthDay']) : null;
+        $birthYear = !empty($input['birthYear']) ? InputUtils::filterInt((string) $input['birthYear']) : null;
+        $familyId = InputUtils::filterInt((string) ($input['familyId'] ?? '0'));
+        $teacherId = !empty($input['teacherId']) ? InputUtils::filterInt((string) $input['teacherId']) : null;
+
+        $family = null;
+        $famLabel = '';
+        if ($familyId === -1) {
+            $newFamilyName = InputUtils::sanitizeAndEscapeText((string) ($input['newFamilyName'] ?? ''));
+            $famLabel = $newFamilyName !== '' ? $newFamilyName : $lastName;
+        } elseif ($familyId > 0) {
+            $family = FamilyQuery::create()->findPk($familyId);
+            if ($family === null) {
+                return SlimUtils::renderErrorJSON($response, gettext('Family not found'), [], 400);
+            }
+        } else {
+            return SlimUtils::renderErrorJSON($response, gettext('Please select an existing family or choose to create a new one'), [], 400);
+        }
+
+        // Resolve this class's own "Student" role (each group has its own role list)
+        $studentRole = ListOptionQuery::create()
+            ->filterById($group->getRoleListId())
+            ->filterByOptionName('Student')
+            ->findOne();
+        if ($studentRole === null) {
+            return SlimUtils::renderErrorJSON($response, gettext('This class has no Student role defined'), [], 400);
+        }
+
+        // Default classification (first active option), matching the convention
+        // used elsewhere for quickly-created people
+        $defaultCls = ListOptionQuery::create()
+            ->filterById(1)
+            ->filterByOptionId(0, Criteria::GREATER_THAN)
+            ->orderByOptionSequence()
+            ->findOne();
+        $clsId = $defaultCls !== null ? (int) $defaultCls->getOptionId() : 1;
+
+        $userId = AuthenticationManager::getCurrentUser()->getId();
+
+        $con = Propel::getWriteConnection(PersonTableMap::DATABASE_NAME);
+        $con->beginTransaction();
+        try {
+            if ($family === null) {
+                $family = new Family();
+                $family->setName($famLabel);
+                $family->setCity(SystemConfig::getValue('sDefaultCity') ?? '');
+                $family->setState(SystemConfig::getValue('sDefaultState') ?? '');
+                $family->setCountry(SystemConfig::getValue('sDefaultCountry') ?? '');
+                $family->setZip(SystemConfig::getValue('sDefaultZip') ?? '');
+                $family->setSendNewsletter('FALSE');
+                $family->setDateEntered(new DateTime());
+                $family->setEnteredBy($userId);
+                $family->save();
+
+                $fc = new FamilyCustom();
+                $fc->setFamId($family->getId());
+                $fc->save();
+            }
+
+            $person = new Person();
+            $person->setFirstName($firstName);
+            $person->setLastName($lastName);
+            $person->setGender($gender);
+            $person->setBirthMonth($birthMonth);
+            $person->setBirthDay($birthDay);
+            $person->setBirthYear($birthYear);
+            $person->setFamId($family->getId());
+            $person->setFmrId(3); // Child
+            $person->setClsId($clsId);
+            $person->setDateEntered(new DateTime());
+            $person->setEnteredBy($userId);
+            $person->save();
+
+            $pc = new PersonCustom();
+            $pc->setPerId($person->getId());
+            $pc->save();
+
+            $con->commit();
+        } catch (\Throwable $e) {
+            $con->rollBack();
+            return SlimUtils::renderErrorJSON($response, gettext('Could not create student'), [], 500, $e, $request);
+        }
+
+        $groupService = new GroupService();
+        $groupService->addUserToGroup($groupID, $person->getId(), (int) $studentRole->getOptionId());
+
+        $note = new Note();
+        $note->setText(gettext('Added to group') . ': ' . $group->getName());
+        $note->setType('group');
+        $note->setEntered($userId);
+        $note->setPerId($person->getId());
+        $note->save();
+
+        if ($teacherId !== null && $teacherId > 0) {
+            (new SundaySchoolService())->setStudentTeacher($groupID, $person->getId(), $teacherId);
+        }
+
+        return SlimUtils::renderJSON($response, [
+            'personId' => $person->getId(),
+            'familyId' => $family->getId(),
+        ]);
+    })->add(GroupMiddleware::class);
+
+    /**
+     * @OA\Post(
+     *     path="/groups/{groupID}/sundayschool/students/{personID}/teacher",
+     *     summary="Assign (or clear) the teacher assigned to a specific student in a Sunday School class (ManageGroupRole role required)",
+     *     tags={"Groups"},
+     *     security={{"ApiKeyAuth":{}}},
+     *     @OA\Parameter(name="groupID", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="personID", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true,
+     *         @OA\JsonContent(@OA\Property(property="teacherId", type="integer", description="Person ID of the teacher, or 0/null to clear"))
+     *     ),
+     *     @OA\Response(response=200, description="Assignment saved"),
+     *     @OA\Response(response=403, description="ManageGroupRole role required")
+     * )
+     */
+    $group->post('/{groupID:[0-9]+}/sundayschool/students/{personID:[0-9]+}/teacher', function (Request $request, Response $response, array $args): Response {
+        $groupID = (int) $args['groupID'];
+        $personID = (int) $args['personID'];
+        $input = $request->getParsedBody() ?? [];
+        $teacherId = !empty($input['teacherId']) ? InputUtils::filterInt((string) $input['teacherId']) : null;
+
+        (new SundaySchoolService())->setStudentTeacher($groupID, $personID, $teacherId);
+
+        return SlimUtils::renderJSON($response, ['groupId' => $groupID, 'personId' => $personID, 'teacherId' => $teacherId]);
+    })->add(new PersonMiddleware('personID'))->add(GroupMiddleware::class);
 
     /**
      * @OA\Post(

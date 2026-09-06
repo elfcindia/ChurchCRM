@@ -106,9 +106,15 @@ if ($bCanManageGroups) {
 
         <!-- Action Toolbar (ghost buttons — matches group view) -->
         <div id="ss-action-toolbar" class="d-flex align-items-center mb-3 gap-2 flex-wrap d-print-none">
+            <?php if ($bCanManageGroups): ?>
+            <button type="button" class="btn btn-ghost-success" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                <i class="fa-solid fa-user-plus me-1"></i><?= gettext('Add Student') ?>
+            </button>
+            <?php else: ?>
             <a class="btn btn-ghost-success" href="<?= $sRootPath ?>/groups/view/<?= $iGroupId ?>">
                 <i class="fa-solid fa-user-plus me-1"></i><?= gettext('Add Students') ?>
             </a>
+            <?php endif; ?>
             <button class="btn btn-ghost-secondary" id="printClass" title="<?= gettext('Print') ?>">
                 <i class="fa-solid fa-print me-1"></i><?= gettext('Print') ?>
             </button>
@@ -168,12 +174,22 @@ if ($bCanManageGroups) {
         </div>
 
         <!-- Teachers Card -->
-        <?php if ($teacherCount > 0): ?>
         <div class="card mb-3">
             <div class="card-header d-flex align-items-center">
                 <h5 class="card-title mb-0"><i class="fa-solid fa-person-chalkboard me-2"></i><?= gettext('Teachers') ?></h5>
                 <span class="badge bg-success-lt text-success ms-2"><?= $teacherCount ?></span>
+                <?php if ($bCanManageGroups): ?>
+                <button type="button" class="btn btn-sm btn-ghost-primary ms-auto" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                    <i class="fa-solid fa-user-plus me-1"></i><?= gettext('Add Teacher') ?>
+                </button>
+                <?php endif; ?>
             </div>
+            <?php if ($teacherCount === 0): ?>
+            <div class="card-body text-center text-muted py-4">
+                <i class="fa-solid fa-person-chalkboard fa-2x mb-2 d-block"></i>
+                <?= gettext('No teachers assigned to this class yet.') ?>
+            </div>
+            <?php else: ?>
             <div class="list-group list-group-flush">
                 <?php foreach ($rsTeachers as $teacher):
                     $phone = $teacher->getCellPhone() ?: $teacher->getHomePhone();
@@ -210,8 +226,8 @@ if ($bCanManageGroups) {
                 </div>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
 
         <!-- Students Card -->
         <div class="card mb-3">
@@ -230,10 +246,12 @@ if ($bCanManageGroups) {
                             <tr>
                                 <th><?= gettext('Name') ?></th>
                                 <th><?= gettext('Age') ?></th>
+                                <th><?= gettext('Gender') ?></th>
                                 <th><?= gettext('Mobile') ?></th>
                                 <th><?= gettext('Email') ?></th>
                                 <th><?= gettext('Father') ?></th>
                                 <th><?= gettext('Mother') ?></th>
+                                <th><?= gettext('Teacher Assigned') ?></th>
                                 <th class="w-1 no-export text-center"><?= gettext('Actions') ?></th>
                             </tr>
                         </thead>
@@ -258,6 +276,15 @@ if ($bCanManageGroups) {
                                     </div>
                                 </td>
                                 <td><?= $hideAge ? '—' : InputUtils::escapeHTML($age) ?></td>
+                                <td>
+                                    <?php if ($child['kidGender'] === 1): ?>
+                                    <i class="fa-solid fa-mars text-primary" title="<?= gettext('Male') ?>"></i>
+                                    <?php elseif ($child['kidGender'] === 2): ?>
+                                    <i class="fa-solid fa-venus text-danger" title="<?= gettext('Female') ?>"></i>
+                                    <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($child['mobilePhone']): ?>
                                     <a href="tel:<?= urlencode($child['mobilePhone']) ?>"><?= InputUtils::escapeHTML($child['mobilePhone']) ?></a>
@@ -294,6 +321,21 @@ if ($bCanManageGroups) {
                                     <?php endif; ?>
                                     <?php else: ?>
                                     <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="assigned-teacher-cell" data-person-id="<?= (int) $child['kidId'] ?>">
+                                    <?php if ($child['teacherName']): ?>
+                                    <span class="assigned-teacher-name"><?= InputUtils::escapeHTML($child['teacherName']) ?></span>
+                                    <?php else: ?>
+                                    <span class="text-muted assigned-teacher-name">—</span>
+                                    <?php endif; ?>
+                                    <?php if ($bCanManageGroups): ?>
+                                    <button type="button" class="btn btn-sm btn-ghost-secondary assign-teacher-btn ms-1" title="<?= gettext('Assign Teacher') ?>"
+                                        data-person-id="<?= (int) $child['kidId'] ?>"
+                                        data-person-name="<?= InputUtils::escapeAttribute($child['firstName'] . ' ' . $child['LastName']) ?>"
+                                        data-teacher-id="<?= (int) ($child['teacherId'] ?? 0) ?>">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
                                     <?php endif; ?>
                                 </td>
                                 <td class="w-1">
@@ -582,6 +624,113 @@ if ($bCanManageGroups) {
 
     </div>
 </div>
+
+<?php if ($bCanManageGroups): ?>
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form id="addStudentForm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title"><i class="fa-solid fa-user-plus me-2"></i><?= gettext('Add Student') ?></h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="addStudentError" class="alert alert-danger d-none"></div>
+                    <div class="row">
+                        <div class="mb-3 col-12 col-sm-6">
+                            <label class="form-label" for="asFirstName"><?= gettext('First Name') ?></label>
+                            <input type="text" class="form-control" id="asFirstName" required>
+                        </div>
+                        <div class="mb-3 col-12 col-sm-6">
+                            <label class="form-label" for="asLastName"><?= gettext('Last Name') ?></label>
+                            <input type="text" class="form-control" id="asLastName" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="mb-3 col-12 col-sm-4">
+                            <label class="form-label" for="asGender"><?= gettext('Gender') ?></label>
+                            <select class="form-select" id="asGender">
+                                <option value="0"><?= gettext('Unassigned') ?></option>
+                                <option value="1"><?= gettext('Male') ?></option>
+                                <option value="2"><?= gettext('Female') ?></option>
+                            </select>
+                        </div>
+                        <div class="mb-3 col-4 col-sm-2">
+                            <label class="form-label" for="asBirthMonth"><?= gettext('Birth Month') ?></label>
+                            <input type="number" min="1" max="12" class="form-control" id="asBirthMonth" placeholder="MM">
+                        </div>
+                        <div class="mb-3 col-4 col-sm-2">
+                            <label class="form-label" for="asBirthDay"><?= gettext('Day') ?></label>
+                            <input type="number" min="1" max="31" class="form-control" id="asBirthDay" placeholder="DD">
+                        </div>
+                        <div class="mb-3 col-4 col-sm-4">
+                            <label class="form-label" for="asBirthYear"><?= gettext('Year') ?></label>
+                            <input type="number" min="1900" max="2100" class="form-control" id="asBirthYear" placeholder="YYYY">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="mb-3 col-12 col-sm-6">
+                            <label class="form-label" for="asClass"><?= gettext('Class') ?></label>
+                            <select class="form-select" id="asClass">
+                                <?php foreach ($allSundaySchoolClasses as $ssClass): ?>
+                                <option value="<?= (int) $ssClass->getId() ?>" <?= $ssClass->getId() === $iGroupId ? 'selected' : '' ?>>
+                                    <?= InputUtils::escapeHTML($ssClass->getName()) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3 col-12 col-sm-6">
+                            <label class="form-label" for="asTeacher"><?= gettext('Teacher Assigned') ?></label>
+                            <select class="form-select" id="asTeacher">
+                                <option value=""><?= gettext('Unassigned') ?></option>
+                                <?php foreach ($rsTeachers as $teacher): ?>
+                                <option value="<?= (int) $teacher->getId() ?>"><?= InputUtils::escapeHTML($teacher->getFirstName() . ' ' . $teacher->getLastName()) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text"><?= gettext('Lists teachers of this class. If you pick a different class above, assign the teacher afterward from that class.') ?></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><?= gettext('Family') ?></label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="asNewFamilyToggle">
+                            <label class="form-check-label" for="asNewFamilyToggle"><?= gettext('Create a new family (using last name)') ?></label>
+                        </div>
+                        <select id="asFamilySearch" class="form-select"></select>
+                        <input type="text" class="form-control d-none" id="asNewFamilyName" placeholder="<?= gettext('New family name') ?>">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="<?= $sRootPath ?>/groups/view/<?= $iGroupId ?>" class="btn btn-link me-auto"><?= gettext('or pick an existing person instead') ?></a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= gettext('Cancel') ?></button>
+                    <button type="submit" class="btn btn-success" id="addStudentSubmit"><i class="fa-solid fa-check me-1"></i><?= gettext('Add Student') ?></button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Teacher Modal -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title"><i class="fa-solid fa-person-chalkboard me-2"></i><?= gettext('Add Teacher') ?></h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="addTeacherError" class="alert alert-danger d-none"></div>
+                <label class="form-label" for="atPersonSearch"><?= gettext('Find an existing person') ?></label>
+                <select id="atPersonSearch" class="form-select personSearch"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= gettext('Cancel') ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <script nonce="<?= SystemURLs::getCSPNonce() ?>">
     window.CRM.currentGroup = <?= (int) $iGroupId ?>;

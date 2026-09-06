@@ -7,3 +7,27 @@
   min-width: 2rem;
   width: auto;
 }
+
+/*
+ * Members table: long unbroken values (emails, names) can force the row wider
+ * than its column and push the table past the viewport. Truncate with an
+ * ellipsis instead - the full value is still available via the title
+ * attribute on hover. Row-action dropdowns on this page use
+ * data-bs-display="static", so the table intentionally does NOT use
+ * .table-responsive/overflow-x (that would clip the dropdown menu) - keep
+ * overflow contained at the cell level instead.
+ */
+#members td .cell-truncate {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+@media (max-width: 767.98px) {
+  #members td .cell-truncate {
+    max-width: 150px;
+  }
+}

@@ -193,6 +193,12 @@ $app->group('/sundayschool', function (RouteCollectorProxy $group) {
             LoggerUtils::getAppLogger()->error('SundaySchool ClassView: Error getting kids full details', ['exception' => $e->getMessage()]);
         }
 
+        // All Sunday School classes, for the "Class" selector in the Add Student modal
+        $allSundaySchoolClasses = GroupQuery::create()
+            ->filterByType(4)
+            ->orderByName()
+            ->find();
+
         $renderer = new PhpRenderer(__DIR__ . '/../views/');
 
         $pageArgs = [
@@ -223,6 +229,7 @@ $app->group('/sundayschool', function (RouteCollectorProxy $group) {
             'rsTeachers'             => $rsTeachers,
             'thisClassChildren'      => $thisClassChildren,
             'canEmail'               => $currentUser->isEmailEnabled(),
+            'allSundaySchoolClasses' => $allSundaySchoolClasses,
         ];
 
         return $renderer->render($response, 'sundayschool/class-view.php', $pageArgs);
