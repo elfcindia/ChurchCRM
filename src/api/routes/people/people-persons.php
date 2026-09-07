@@ -374,7 +374,8 @@ function getPersonsWithBirthdays(Request $request, Response $response, array $ar
         $formattedPerson['LastName'] = $person->getLastName();
         $formattedPerson['FormattedName'] = $person->getFullName();
         $formattedPerson['HasPhoto'] = $person->getPhoto()->hasUploadedPhoto();
-        
+        $formattedPerson['Phone'] = $person->getCellPhone() ?: $person->getHomePhone();
+
         // Calculate days until birthday this year (for sorting)
         $birthMonth = $person->getBirthMonth();
         $birthDay = $person->getBirthDay();

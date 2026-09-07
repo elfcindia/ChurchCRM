@@ -49,13 +49,16 @@ if ($iFamilyID > 0) {
     RedirectUtils::securityRedirect('AddRecords');
 }
 
-// Ensure the Baptism Date / Baby Dedication / House Visiting Preferred
-// Day+Time / Area Name fields exist (auto-provisioned via the same
-// mechanism as admin-added custom fields). Must run before the
-// family_custom_master query below so these fields are included in
-// $rsCustomFields and therefore covered by the existing validate/save loop.
-$fldFamBaptismDate = CustomFieldUtils::ensureField('family', 'Baptism Date', 2)['field'];
-$fldFamBabyDedication = CustomFieldUtils::ensureField('family', 'Baby Dedication', 2)['field'];
+// Ensure the House Visiting Preferred Day+Time / Area Name fields exist, and
+// the (person-level) Baptism Date / Baby Dedication fields used by the
+// Family Members quick-entry grid below - all auto-provisioned via the same
+// mechanism as admin-added custom fields. Must run before the
+// family_custom_master query below so the family-level fields are included
+// in $rsCustomFields and therefore covered by the existing validate/save loop.
+// Baptism Date / Baby Dedication are tracked per-person (see the Family
+// Members table), not at the family level.
+$fldMemberBaptismDate = CustomFieldUtils::ensureField('person', 'Baptism Date', 2)['field'];
+$fldMemberBabyDedication = CustomFieldUtils::ensureField('person', 'Baby Dedication', 2)['field'];
 $fldVisitDayInfo = CustomFieldUtils::ensureField('family', 'House Visiting Preferred Day', 12, [
     gettext('Sunday'), gettext('Monday'), gettext('Tuesday'), gettext('Wednesday'),
     gettext('Thursday'), gettext('Friday'), gettext('Saturday'),
@@ -65,7 +68,7 @@ $fldVisitDaySpecial = $fldVisitDayInfo['special'];
 $fldVisitTime = CustomFieldUtils::ensureField('family', 'House Visiting Preferred Time', 3)['field'];
 $fldAreaNameInfo = CustomFieldUtils::ensureField('family', 'Area Name', 12, [
     'COX TOWN', 'INDIRANAGAR', 'HAL', 'MARATHAHALLI', 'VARTHUR', 'CHELKERE', 'HRBR LAYOUT',
-    'HEBBAL', 'HEDGENAGAR', 'NARAYANPURA', 'KANNUR', 'KOTHANUR', 'HENNUR', 'GEDALAHALLI',
+    'HEBBAL', 'HEGDENAGAR', 'NARAYANPURA', 'KANNUR', 'KOTHANUR', 'HENNUR', 'GEDALAHALLI',
     'KASTURI NAGAR', 'RAMAMURTHY NAGAR', 'BABUSAHBPALYA', 'LINGARAJPURAM', 'KACHARAKANAHALLI',
 ]);
 $fldAreaName = $fldAreaNameInfo['field'];
@@ -172,6 +175,8 @@ if (isset($_POST['FamilySubmit']) || isset($_POST['FamilySubmitAndAdd'])) {
         $aClassification[$iCount] = InputUtils::legacyFilterInput($_POST["Classification$iCount"], 'int');
         $aPersonIDs[$iCount] = InputUtils::legacyFilterInput($_POST["PersonID$iCount"], 'int');
         $aUpdateBirthYear[$iCount] = InputUtils::legacyFilterInput($_POST['UpdateBirthYear'], 'int');
+        $aBaptismDates[$iCount] = InputUtils::legacyFilterInput($_POST["BaptismDate$iCount"] ?? '');
+        $aBabyDedications[$iCount] = InputUtils::legacyFilterInput($_POST["BabyDedication$iCount"] ?? '');
 
         // Make sure first names were entered if editing existing family
         if ($iFamilyID > 0) {
@@ -351,6 +356,18 @@ if (isset($_POST['FamilySubmit']) || isset($_POST['FamilySubmitAndAdd'])) {
                     $sSQL = "INSERT INTO person_custom (per_ID) VALUES ($dbPersonId)";
                     RunQuery($sSQL);
                     RunQuery('UNLOCK TABLES');
+
+                    // Save this member's Baptism Date / Baby Dedication (person-level custom fields)
+                    $sMemberBaptismDate = InputUtils::legacyFilterInput($_POST["BaptismDate$iCount"] ?? '');
+                    $sMemberBabyDedication = InputUtils::legacyFilterInput($_POST["BabyDedication$iCount"] ?? '');
+                    $aMemberCustomErrors = [];
+                    CustomFieldUtils::validate(2, $sMemberBaptismDate, $fldMemberBaptismDate, $aMemberCustomErrors);
+                    CustomFieldUtils::validate(2, $sMemberBabyDedication, $fldMemberBabyDedication, $aMemberCustomErrors);
+                    $sMemberCustomSQL = '';
+                    CustomFieldUtils::buildSql($sMemberCustomSQL, 2, $sMemberBaptismDate, $fldMemberBaptismDate, null);
+                    CustomFieldUtils::buildSql($sMemberCustomSQL, 2, $sMemberBabyDedication, $fldMemberBabyDedication, null);
+                    $sMemberCustomSQL = mb_substr($sMemberCustomSQL, 0, -2);
+                    RunQuery("REPLACE INTO person_custom SET $sMemberCustomSQL, per_ID = $dbPersonId");
                 }
             }
             $family = FamilyQuery::create()->findPk($iFamilyID);
@@ -398,6 +415,18 @@ if (isset($_POST['FamilySubmit']) || isset($_POST['FamilySubmitAndAdd'])) {
                     $note->setType('edit');
                     $note->setEntered(AuthenticationManager::getCurrentUser()->getId());
                     $note->save();
+
+                    // Save this member's Baptism Date / Baby Dedication (person-level custom fields)
+                    $sMemberBaptismDate = InputUtils::legacyFilterInput($_POST["BaptismDate$iCount"] ?? '');
+                    $sMemberBabyDedication = InputUtils::legacyFilterInput($_POST["BabyDedication$iCount"] ?? '');
+                    $aMemberCustomErrors = [];
+                    CustomFieldUtils::validate(2, $sMemberBaptismDate, $fldMemberBaptismDate, $aMemberCustomErrors);
+                    CustomFieldUtils::validate(2, $sMemberBabyDedication, $fldMemberBabyDedication, $aMemberCustomErrors);
+                    $sMemberCustomSQL = '';
+                    CustomFieldUtils::buildSql($sMemberCustomSQL, 2, $sMemberBaptismDate, $fldMemberBaptismDate, null);
+                    CustomFieldUtils::buildSql($sMemberCustomSQL, 2, $sMemberBabyDedication, $fldMemberBabyDedication, null);
+                    $sMemberCustomSQL = mb_substr($sMemberCustomSQL, 0, -2);
+                    RunQuery("REPLACE INTO person_custom SET $sMemberCustomSQL, per_ID = " . (int) $aPersonIDs[$iCount]);
                 }
             }
             $family = FamilyQuery::create()->findPk($iFamilyID);
@@ -502,6 +531,13 @@ if (isset($_POST['FamilySubmit']) || isset($_POST['FamilySubmitAndAdd'])) {
             $aClassification[$iCount] = (int)$per_cls_ID;
             $aPersonIDs[$iCount] = (int)$per_ID;
             $aPerFlag[$iCount] = $per_Flags;
+
+            $sMemberCustomSQL = "SELECT `$fldMemberBaptismDate`, `$fldMemberBabyDedication` FROM person_custom WHERE per_ID = " . (int) $per_ID;
+            $rsMemberCustom = RunQuery($sMemberCustomSQL);
+            if ($aMemberCustomRow = mysqli_fetch_array($rsMemberCustom, MYSQLI_NUM)) {
+                $aBaptismDates[$iCount] = trim((string) ($aMemberCustomRow[0] ?? ''));
+                $aBabyDedications[$iCount] = trim((string) ($aMemberCustomRow[1] ?? ''));
+            }
         }
     } else {
         //Adding....
@@ -616,16 +652,6 @@ require_once __DIR__ . '/Include/Header.php';
                     <?php } ?>
                 </div>
                 <?php } /* Wedding date can be hidden - General Settings */ ?>
-            </div>
-            <div class="row">
-                <div class="mb-3 col-12 col-sm-6 col-md-4">
-                    <label for="<?= $fldFamBaptismDate ?>"><?= gettext('Baptism Date') ?>:</label>
-                    <?php CustomFieldUtils::renderForm(2, $fldFamBaptismDate, array_key_exists($fldFamBaptismDate, $aCustomData) ? trim($aCustomData[$fldFamBaptismDate]) : '', null, !isset($_POST['FamilySubmit'])); ?>
-                </div>
-                <div class="mb-3 col-12 col-sm-6 col-md-4">
-                    <label for="<?= $fldFamBabyDedication ?>"><?= gettext('Baby Dedication') ?>:</label>
-                    <?php CustomFieldUtils::renderForm(2, $fldFamBabyDedication, array_key_exists($fldFamBabyDedication, $aCustomData) ? trim($aCustomData[$fldFamBabyDedication]) : '', null, !isset($_POST['FamilySubmit'])); ?>
-                </div>
             </div>
         </div>
     </div>
@@ -794,13 +820,13 @@ require_once __DIR__ . '/Include/Header.php';
             <div class="card-body">
                 <?php 
                 $customPhoneFields = [];
-                $familyExplicitFields = [$fldFamBaptismDate, $fldFamBabyDedication, $fldVisitDay, $fldVisitTime, $fldAreaName];
+                $familyExplicitFields = [$fldVisitDay, $fldVisitTime, $fldAreaName];
                 mysqli_data_seek($rsCustomFields, 0);
                 while ($rowCustomField = mysqli_fetch_array($rsCustomFields, MYSQLI_BOTH)) {
                     extract($rowCustomField);
-                    // Baptism Date / Baby Dedication / House Visiting Day+Time /
-                    // Area Name are rendered explicitly elsewhere in this form -
-                    // skip them here so they don't appear twice.
+                    // House Visiting Day+Time / Area Name are rendered explicitly
+                    // elsewhere in this form - skip them here so they don't
+                    // appear twice.
                     if (in_array($fam_custom_Field, $familyExplicitFields, true)) {
                         continue;
                     }
@@ -850,6 +876,8 @@ require_once __DIR__ . '/Include/Header.php';
                                                 <th><?= gettext('Birth Day') ?></th>
                                                 <th><?= gettext('Birth Year') ?></th>
                                                 <th><?= gettext('Classification') ?></th>
+                                                <th><?= gettext('Baptism Date') ?></th>
+                                                <th><?= gettext('Baby Dedication') ?></th>
                                             </tr>
                                         </thead>
                                         <tbody id="familyMembersTbody">
@@ -966,6 +994,12 @@ require_once __DIR__ . '/Include/Header.php';
                                                         }
                                                         ?>
                                                     </select>
+                                                </td>
+                                                <td>
+                                                    <?php CustomFieldUtils::renderForm(2, "BaptismDate$iCount", $aBaptismDates[$iCount] ?? '', null, !isset($_POST['FamilySubmit'])); ?>
+                                                </td>
+                                                <td>
+                                                    <?php CustomFieldUtils::renderForm(2, "BabyDedication$iCount", $aBabyDedications[$iCount] ?? '', null, !isset($_POST['FamilySubmit'])); ?>
                                                 </td>
                                             </tr>
                                         <?php } ?>

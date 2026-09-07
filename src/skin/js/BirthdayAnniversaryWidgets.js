@@ -125,6 +125,7 @@ export function initializeBirthdayAnniversaryWidgets() {
           title: i18next.t("Name"),
           data: "FirstName",
           render: (data, type, row) => {
+            if (type !== "display") return row.FormattedName || "";
             // The Birthdays widget lives in a narrow sidebar column at every
             // breakpoint (mobile, tablet, and desktop xl-sidebar). Renders MUST
             // tolerate ~120px of name space without breaking layout.
@@ -170,10 +171,11 @@ export function initializeBirthdayAnniversaryWidgets() {
           },
         },
         {
-          width: "40%",
+          width: "35%",
           title: i18next.t("Birthday"),
           data: "DaysUntil",
           render: (data, type, row) => {
+            if (type !== "display") return row.Birthday || "";
             if (row.Birthday === undefined) return "";
             const diff = row.DaysUntil;
 
@@ -202,6 +204,12 @@ export function initializeBirthdayAnniversaryWidgets() {
             return row.Birthday + " " + badge;
           },
         },
+        {
+          width: "25%",
+          title: i18next.t("Phone"),
+          data: "Phone",
+          render: (data) => (data ? '<a href="tel:' + encodeURIComponent(data) + '">' + data + "</a>" : ""),
+        },
       ],
       // Paginate birthdays after 5 items
       paging: true,
@@ -212,8 +220,26 @@ export function initializeBirthdayAnniversaryWidgets() {
     // Ensure paging settings aren't overridden by dashboard defaults
     dataTableConfig.paging = true;
     dataTableConfig.pageLength = 5;
-    // Include pagination control in DOM (dashboard defaults remove it)
-    dataTableConfig.dom = "<'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    // Include pagination control in DOM (dashboard defaults remove it), plus
+    // a compact buttons toolbar (Copy / Print-to-PDF) covering the FULL list,
+    // not just the currently visible page.
+    dataTableConfig.dom = "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    dataTableConfig.buttons = [
+      {
+        extend: "copyHtml5",
+        text: '<i class="ti ti-copy"></i>',
+        titleAttr: i18next.t("Copy to Clipboard"),
+        title: i18next.t("Birthdays"),
+        exportOptions: { columns: [1, 2, 3], modifier: { page: "all" } },
+      },
+      {
+        extend: "print",
+        text: '<i class="ti ti-printer"></i>',
+        titleAttr: i18next.t("Print / Save as PDF"),
+        title: i18next.t("Birthdays"),
+        exportOptions: { columns: [1, 2, 3], modifier: { page: "all" } },
+      },
+    ];
     const birthdayPersonTable = $("#PersonBirthdayDashboardItem").DataTable(dataTableConfig);
     birthdayPersonTable.on("draw", () => {
       syncCartButtons();
@@ -250,10 +276,11 @@ export function initializeBirthdayAnniversaryWidgets() {
       },
       columns: [
         {
-          width: "50%",
+          width: "40%",
           title: i18next.t("Name"),
           data: "Name",
           render: (data, type, row) => {
+            if (type !== "display") return data || "";
             // Anniversaries widget shares the narrow sidebar column with the
             // Birthdays widget — keep the markup symmetrical (gap-2, min-w-0,
             // text-break) so long family names wrap cleanly at every breakpoint.
@@ -274,10 +301,11 @@ export function initializeBirthdayAnniversaryWidgets() {
           },
         },
         {
-          width: "50%",
+          width: "35%",
           title: i18next.t("Anniversary"),
           data: "WeddingDate",
           render: (data, type, row) => {
+            if (type !== "display") return data || "";
             if (!data) return "";
             const weddingDate = moment(data, ["MMMM D, YYYY", "MMMM D", "MM-DD-YYYY"]);
             const thisYear = moment().year();
@@ -318,6 +346,12 @@ export function initializeBirthdayAnniversaryWidgets() {
             return data + badge;
           },
         },
+        {
+          width: "25%",
+          title: i18next.t("Phone"),
+          data: "Phone",
+          render: (data) => (data ? '<a href="tel:' + encodeURIComponent(data) + '">' + data + "</a>" : ""),
+        },
       ],
       // Paginate anniversaries after 5 items
       paging: true,
@@ -328,8 +362,26 @@ export function initializeBirthdayAnniversaryWidgets() {
     // Ensure paging settings aren't overridden by dashboard defaults
     dataTableConfig.paging = true;
     dataTableConfig.pageLength = 5;
-    // Include pagination control in DOM (dashboard defaults remove it)
-    dataTableConfig.dom = "<'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    // Include pagination control in DOM (dashboard defaults remove it), plus
+    // a compact buttons toolbar (Copy / Print-to-PDF) covering the FULL list,
+    // not just the currently visible page.
+    dataTableConfig.dom = "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    dataTableConfig.buttons = [
+      {
+        extend: "copyHtml5",
+        text: '<i class="ti ti-copy"></i>',
+        titleAttr: i18next.t("Copy to Clipboard"),
+        title: i18next.t("Anniversaries"),
+        exportOptions: { columns: [0, 1, 2], modifier: { page: "all" } },
+      },
+      {
+        extend: "print",
+        text: '<i class="ti ti-printer"></i>',
+        titleAttr: i18next.t("Print / Save as PDF"),
+        title: i18next.t("Anniversaries"),
+        exportOptions: { columns: [0, 1, 2], modifier: { page: "all" } },
+      },
+    ];
     const anniversaryFamiliesTable = $("#FamiliesWithAnniversariesDashboardItem").DataTable(dataTableConfig);
     anniversaryFamiliesTable.on("draw", () => {
       syncCartButtons();

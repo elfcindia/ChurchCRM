@@ -54,6 +54,57 @@ $childPeople = $family->getChildPeople();
 $otherPeople = $family->getOtherPeople();
 ?>
 
+<!--
+  Print view: the "Print" button just calls window.print() (see FamilyView.js),
+  which by default prints whatever is visible on screen. The nav/sidebar
+  already hide themselves via Tabler's d-print-none, but this page's many
+  cards (Timeline, Custom Fields, Events, etc.) do not - printing used to
+  include the entire page. Scoped to THIS page only (not a global rule,
+  since #familyPrintSummary/.container-xl only means "print just this" here -
+  other pages must keep printing normally).
+-->
+<style nonce="<?= SystemURLs::getCSPNonce() ?>">
+    @media print {
+        .page-body .container-xl > *:not(#familyPrintSummary) {
+            display: none !important;
+        }
+        #familyPrintSummary {
+            display: block !important;
+        }
+    }
+</style>
+<div id="familyPrintSummary" class="d-none d-print-block">
+    <h2><?= InputUtils::escapeHTML($family->getName()) ?> <small><?= InputUtils::escapeHTML($family->getFamilyIdentifier()) ?></small></h2>
+    <?php if ($familyAddress): ?>
+    <p><strong><?= gettext('Address') ?>:</strong> <?= InputUtils::escapeHTML($familyAddress) ?></p>
+    <?php endif; ?>
+    <?php if ($family->getHomePhone()): ?>
+    <p><strong><?= gettext('Phone') ?>:</strong> <?= InputUtils::escapeHTML($family->getHomePhone()) ?></p>
+    <?php endif; ?>
+    <?php $printAnniversary = $family->getWeddingdate(SystemConfig::getValue('sDateFormatLong')); ?>
+    <?php if ($printAnniversary): ?>
+    <p><strong><?= gettext('Anniversary') ?>:</strong> <?= InputUtils::escapeHTML($printAnniversary) ?></p>
+    <?php endif; ?>
+    <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead>
+            <tr>
+                <th style="text-align:left;"><?= gettext('Name') ?></th>
+                <th style="text-align:left;"><?= gettext('Birthday') ?></th>
+                <th style="text-align:left;"><?= gettext('Phone') ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($family->getPeople() as $printMember): ?>
+            <tr>
+                <td><?= InputUtils::escapeHTML($printMember->getFullName()) ?></td>
+                <td><?= $printMember->getFormattedBirthDate() ? InputUtils::escapeHTML($printMember->getFormattedBirthDate()) : '—' ?></td>
+                <td><?= InputUtils::escapeHTML($printMember->getCellPhone() ?: $printMember->getHomePhone() ?: '—') ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
 <script nonce="<?= SystemURLs::getCSPNonce() ?>">
     window.CRM.currentFamily = <?= $family->getId() ?>;
     window.CRM.currentFamilyName = <?= json_encode($family->getName()) ?>;

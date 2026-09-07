@@ -5,7 +5,6 @@ namespace ChurchCRM\Service;
 use ChurchCRM\Authentication\AuthenticationManager;
 use ChurchCRM\dto\Notification\UiNotification;
 use ChurchCRM\dto\SystemConfig;
-use ChurchCRM\dto\SystemURLs;
 use ChurchCRM\Utils\LoggerUtils;
 
 /**
@@ -61,45 +60,17 @@ class NotificationService
      */
     public static function loadSessionNotifications(): void
     {
-        self::loadUpgradeNotification();
         self::loadRemoteNotifications();
     }
 
-    // ─── Source 1: System upgrade (session set at login) ────────────────
-
-    /**
-     * If a system upgrade is available, push the admin notification.
-     */
-    private static function loadUpgradeNotification(): void
-    {
-        $currentUser = AuthenticationManager::getCurrentUser();
-        if (
-            !$currentUser->isAdmin()
-            || !isset($_SESSION['systemUpdateAvailable'])
-            || $_SESSION['systemUpdateAvailable'] !== true
-        ) {
-            return;
-        }
-
-        $version = (isset($_SESSION['systemUpdateVersion']) && $_SESSION['systemUpdateVersion'] !== null)
-            ? (string) $_SESSION['systemUpdateVersion']
-            : '';
-
-        $id = 'system-update-available';
-        self::add(new UiNotification(
-            $id,
-            'notification.dismissed.' . $id,
-            gettext('System Update Available'),
-            $version !== ''
-                ? sprintf(gettext('Version %s is available. Please upgrade your installation.'), $version)
-                : gettext('A system update is available. Please upgrade your installation.'),
-            SystemURLs::getRootPath() . '/admin/system/upgrade',
-            'warning',
-            'refresh',
-        ));
-    }
-
-    // ─── Source 2: Remote GitHub JSON (session set at login) ────────────
+    // ─── Source: Remote GitHub JSON (session set at login) ──────────────
+    //
+    // Note: this class used to also surface a site-wide "System Update
+    // Available" banner (sourced from $_SESSION['systemUpdateAvailable'],
+    // set by AuthenticationManager's version check at login). That banner
+    // was removed at the church's request - admins can still check for
+    // updates via the "New Release" icon in the top nav (Header.php) or
+    // Admin > System > Upgrade.
 
     /**
      * Fetch notifications from the remote GitHub-hosted JSON file.

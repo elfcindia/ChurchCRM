@@ -82,10 +82,31 @@ $(document).ready(function () {
                     <td><select name="BirthDay${rowCount}" class="form-control form-control-sm">${dayOptions}</select></td>
                     <td><input name="BirthYear${rowCount}" type="text" value="" class="form-control form-control-sm" style="width: 70px;" maxlength="4"></td>
                     <td><select name="Classification${rowCount}" class="form-control form-control-sm">${classOptions}</select></td>
+                    <td>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                            <input class="form-control form-control-sm date-picker" type="text" id="BaptismDate${rowCount}" name="BaptismDate${rowCount}" value="">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                            <input class="form-control form-control-sm date-picker" type="text" id="BabyDedication${rowCount}" name="BabyDedication${rowCount}" value="">
+                        </div>
+                    </td>
                 </tr>
             `;
 
-      $("#familyMembersTbody").append(newRow);
+      const $newRow = $(newRow);
+      $("#familyMembersTbody").append($newRow);
+
+      // The global $(".date-picker").datepicker() init in Footer.js only
+      // scans the DOM once on page load - newly-appended rows need their
+      // own date-picker widgets wired up explicitly.
+      $newRow.find(".date-picker").datepicker({
+        format: window.CRM.datePickerformat,
+        language: window.CRM.lang,
+      });
 
       // Update FamCount hidden field
       $("input[name='FamCount']").val(rowCount);

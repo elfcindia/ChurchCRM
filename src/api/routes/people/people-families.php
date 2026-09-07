@@ -318,6 +318,7 @@ function buildFormattedFamilies($families): array
         $formattedFamily['Name'] = $family->getName();
         $formattedFamily['Address'] = $family->getAddress();
         $formattedFamily['HasPhoto'] = $family->getPhoto()->hasUploadedPhoto();
+        $formattedFamily['Phone'] = $family->getHomePhone();
         $formattedFamily['IsActive'] = $family->isActive();
         $formattedFamily['StatusText'] = $family->getStatusText();
 
