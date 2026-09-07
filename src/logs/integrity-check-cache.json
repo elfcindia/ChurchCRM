@@ -1,1 +1,4 @@
-{"computedAt":1783533221,"result":{"status":"success","message":"All system file signatures match the expected values.","files":[]}}
+{
+  "computedAt": 1783533221,
+  "result": { "status": "success", "message": "All system file signatures match the expected values.", "files": [] }
+}
