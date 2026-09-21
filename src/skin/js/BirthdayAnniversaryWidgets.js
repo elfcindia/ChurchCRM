@@ -223,7 +223,8 @@ export function initializeBirthdayAnniversaryWidgets() {
     // Include pagination control in DOM (dashboard defaults remove it), plus
     // a compact buttons toolbar (Copy / Print-to-PDF) covering the FULL list,
     // not just the currently visible page.
-    dataTableConfig.dom = "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    dataTableConfig.dom =
+      "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
     dataTableConfig.buttons = [
       {
         extend: "copyHtml5",
@@ -365,7 +366,8 @@ export function initializeBirthdayAnniversaryWidgets() {
     // Include pagination control in DOM (dashboard defaults remove it), plus
     // a compact buttons toolbar (Copy / Print-to-PDF) covering the FULL list,
     // not just the currently visible page.
-    dataTableConfig.dom = "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
+    dataTableConfig.dom =
+      "<'row'<'col-sm-12 d-flex justify-content-between align-items-center'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-12'p>>";
     dataTableConfig.buttons = [
       {
         extend: "copyHtml5",
