@@ -98,10 +98,10 @@ $(document).ready(function () {
             $btn.prop("disabled", false);
           })
           .done(function (data) {
-            window.CRM.notify(
-              i18next.t("Sent to {{sent}} of {{total}}", { sent: data.sent, total: data.total }),
-              { type: data.failed > 0 ? "warning" : "success", delay: 6000 },
-            );
+            window.CRM.notify(i18next.t("Sent to {{sent}} of {{total}}", { sent: data.sent, total: data.total }), {
+              type: data.failed > 0 ? "warning" : "success",
+              delay: 6000,
+            });
             $message.val("").trigger("input");
           });
       },
